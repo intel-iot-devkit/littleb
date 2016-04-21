@@ -1,6 +1,31 @@
+/*
+ * Author: Shiran Ben-Melech <shiran.ben-melech@intel.com>
+ * Copyright (c) 2016 Intel Corporation.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <systemd/sd-bus.h>
 
 #define MAX_LEN 256
@@ -89,6 +114,18 @@ get_device_name(const char* device_path)
         }
 
         return (const char *) name;
+}
+
+const char*
+get_object_path_by_address(const char* object_path)
+{
+        int i;
+        for(i = 0; i < devices_size; i++) {
+                if (strncmp(object_path, devices[i]->object_path, strlen(object_path)) == 0) {
+                        return devices[i]->address;
+                }
+        }
+        return NULL;
 }
 
 bool
@@ -342,6 +379,8 @@ list_devices(int seconds)
         return EXIT_SUCCESS;
 }
 
+
+
 int
 connect_device(const char * address)
 {
@@ -493,15 +532,15 @@ write_to_char(const char* address, const char* value)
 int
 main(int argc, char *argv[])
 {
+        int i;
         open_system_bus();
         list_devices(5);
-        int i;
         for(i = 0; i < devices_size; i++) {
                 printf("%s\t%s\n", devices[i]->address, devices[i]->name);
         }
         connect_device("/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
-        pair_device("/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
-        unpair_device("/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
+        //pair_device("/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
+        //unpair_device("/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
         disconnect_device("/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
         close_system_bus();
         return 0;
