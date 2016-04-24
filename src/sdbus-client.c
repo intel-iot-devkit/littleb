@@ -33,7 +33,7 @@
 
 typedef struct bl_device
 {
-        const char *object_path;
+        const char *device_path;
         const char *address;
         const char *name;
 } bl_device;
@@ -48,7 +48,7 @@ typedef struct lb_context
 
 
 const char*
-convert_object_path_to_address(const char *address)
+convert_device_path_to_address(const char *address)
 {
         int i;
         const char *prefix = "dev_";
@@ -86,38 +86,26 @@ is_bus_connected(lb_context *lb_ctx)
 const char*
 get_device_name(lb_context *lb_ctx, const char *device_path)
 {
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
         printf("Method Called: %s\n", __FUNCTION__);
         int r;
         char *name;
 
-        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Name", error, &name);
+        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Name", &error, &name);
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s on %s\n", error->message, device_path);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s on %s\n", error.message, device_path);
+                sd_bus_error_free(&error);
                 return NULL;
         }
 
         return (const char *) name;
 }
 
-const char*
-get_object_path_by_address(lb_context *lb_ctx, const char *object_path)
-{
-        int i;
-        for(i = 0; i < lb_ctx->devices_size; i++) {
-                if (strncmp(object_path, lb_ctx->devices[i]->object_path, strlen(object_path)) == 0) {
-                        return lb_ctx->devices[i]->address;
-                }
-        }
-        return NULL;
-}
-
 bool
-is_bl_device(lb_context *lb_ctx, const char *object_path)
+is_bl_device(lb_context *lb_ctx, const char *device_path)
 {
         printf("Method Called: %s\n", __FUNCTION__);
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
         sd_bus_message *m = NULL;
 
         int r;
@@ -129,15 +117,15 @@ is_bl_device(lb_context *lb_ctx, const char *object_path)
 
         r = sd_bus_call_method(lb_ctx->bus,
                                "org.bluez",
-                               object_path,
+                               device_path,
                                "org.freedesktop.DBus.Introspectable",
                                "Introspect",
-                               error,
+                               &error,
                                &m,
                                NULL);
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);;
                 return false;
         }
@@ -145,12 +133,12 @@ is_bl_device(lb_context *lb_ctx, const char *object_path)
         r = sd_bus_message_read_basic(m, 's', &introspect_xml);
         if(r < 0) {
                 fprintf(stderr, "sd_bus_message_read_basic: %s\n", strerror(-r));
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return false;
         }
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
 
         return (strstr(introspect_xml, "org.bluez.Device1") != NULL) ? true : false;
@@ -177,7 +165,7 @@ add_new_device(lb_context *lb_ctx, const char *device_path)
 
         bl_device *new_device = malloc(sizeof(bl_device));
 
-        new_device->object_path = device_path;
+        new_device->device_path = device_path;
         const char *name = get_device_name(lb_ctx, device_path);
         if(name == NULL) {
                 fprintf(stderr, "Error couldn't find device name\n");
@@ -186,7 +174,7 @@ add_new_device(lb_context *lb_ctx, const char *device_path)
         else {
                 new_device->name = name;
         }
-        new_device->address = convert_object_path_to_address(device_path);
+        new_device->address = convert_device_path_to_address(device_path);
         lb_ctx->devices[current_index] = new_device;
 
         return EXIT_SUCCESS;
@@ -197,8 +185,8 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
 {
         printf("Method Called: %s\n", __FUNCTION__);
         int r = 0, i = 0;
-        const char *object_path;
-        sd_bus_error *error = NULL;
+        const char *device_path;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
         sd_bus_message *m = NULL;
 
         if(!is_bus_connected(lb_ctx)) {
@@ -210,12 +198,12 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
                                "/",
                                "org.freedesktop.DBus.ObjectManager",
                                "GetManagedObjects",
-                               error,
+                               &error,
                                &m,
                                NULL);
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
@@ -225,34 +213,34 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
         r = sd_bus_message_enter_container(m, 'a', "{oa{sa{sv}}}");
         if(r < 0) {
                 fprintf(stderr, "sd_bus_message_enter_container {oa{sa{sv}}}: %s\n", strerror(-r));
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
         while((r = sd_bus_message_enter_container(m, 'e', "oa{sa{sv}}")) > 0) {
-                r = sd_bus_message_read_basic(m, 'o', &object_path);
+                r = sd_bus_message_read_basic(m, 'o', &device_path);
                 if(r < 0) {
                         fprintf(stderr, "sd_bus_message_read_basic: %s\n", strerror(-r));
-                                sd_bus_error_free(error);
+                                sd_bus_error_free(&error);
         sd_bus_message_unref(m);;
                 }
                 else {
-                        char *restrict new_object_path = malloc(strlen(object_path) + 1);
-                        if(new_object_path == NULL) {
+                        char *restrict new_device_path = malloc(strlen(device_path) + 1);
+                        if(new_device_path == NULL) {
                                 fprintf(stderr, "Error allocating memory for object name\n");
-                                sd_bus_error_free(error);
+                                sd_bus_error_free(&error);
                                 sd_bus_message_unref(m);
                                 return EXIT_FAILURE;
                         }
-                        objects[i] = strcpy(new_object_path, object_path);
+                        objects[i] = strcpy(new_device_path, device_path);
                         i++;
                 }
 
                 r = sd_bus_message_skip(m, "a{sa{sv}}");
                 if(r < 0) {
                         fprintf(stderr, "sd_bus_message_skip: %s\n", strerror(-r));
-                        sd_bus_error_free(error);
+                        sd_bus_error_free(&error);
                         sd_bus_message_unref(m);
                         return EXIT_FAILURE;
                 }
@@ -260,7 +248,7 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
                 r = sd_bus_message_exit_container(m);
                 if(r < 0) {
                         fprintf(stderr, "sd_bus_message_exit_container oa{sa{sv}}: %s\n", strerror(-r));
-                        sd_bus_error_free(error);
+                        sd_bus_error_free(&error);
                         sd_bus_message_unref(m);
                         return EXIT_FAILURE;
                 }
@@ -268,7 +256,7 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
 
         if(r < 0) {
                 fprintf(stderr, "sd_bus_message_enter_container oa{sa{sv}}: %s\n", strerror(-r));
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
@@ -276,12 +264,12 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
         r = sd_bus_message_exit_container(m);
         if(r < 0) {
                 fprintf(stderr, "sd_bus_message_exit_container {oa{sa{sv}}}: %s\n", strerror(-r));
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
         return EXIT_SUCCESS;
 }
@@ -292,37 +280,37 @@ scan_devices(lb_context *lb_ctx, int seconds)
         printf("Method Called: %s\n", __FUNCTION__);
         int r = 0;
         sd_bus_message *m = NULL;
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if(!is_bus_connected(lb_ctx)) {
                 fprintf(stderr, "Bus is not opened\n");
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
-        r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StartDiscovery", error, &m,
+        r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StartDiscovery", &error, &m,
         NULL);
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
         sleep(seconds);
 
-        r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StopDiscovery", error, &m,
+        r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StopDiscovery", &error, &m,
         NULL);
 
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
         return EXIT_SUCCESS;
 }
@@ -356,7 +344,7 @@ lb_list_devices(lb_context *lb_ctx, int seconds)
         const char* *objects;
         const char *point;
         int i = 0, r = 0;
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if(lb_ctx->devices != NULL) {
                 free(lb_ctx->devices);
@@ -397,11 +385,11 @@ lb_connect_device(lb_context *lb_ctx, const char  *address)
         printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if(!is_bus_connected(lb_ctx)) {
                 fprintf(stderr, "Bus is not opened\n");
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
@@ -411,18 +399,18 @@ lb_connect_device(lb_context *lb_ctx, const char  *address)
                                address,
                                "org.bluez.Device1",
                                "Connect",
-                               error,
+                               &error,
                                &m,
                                NULL);
 
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
         return EXIT_SUCCESS;
 }
@@ -433,11 +421,11 @@ lb_disconnect_device(lb_context *lb_ctx, const char  *address)
         printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if(!is_bus_connected(lb_ctx)) {
                 fprintf(stderr, "Bus is not opened\n");
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
@@ -447,17 +435,17 @@ lb_disconnect_device(lb_context *lb_ctx, const char  *address)
                                address,
                                "org.bluez.Device1",
                                "Disconnect",
-                               error,
+                               &error,
                                &m,
                                NULL);
 
         if(r < 0) {
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
         return EXIT_SUCCESS;
 }
@@ -468,11 +456,11 @@ lb_pair_device(lb_context *lb_ctx, const char  *address)
         printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if(!is_bus_connected(lb_ctx)) {
                 fprintf(stderr, "Bus is not opened\n");
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
@@ -482,18 +470,18 @@ lb_pair_device(lb_context *lb_ctx, const char  *address)
                                address,
                                "org.bluez.Device1",
                                "Pair",
-                               error,
+                               &error,
                                &m,
                                NULL);
 
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
         return EXIT_SUCCESS;
 }
@@ -504,11 +492,11 @@ lb_unpair_device(lb_context *lb_ctx, const char  *address)
         printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
-        sd_bus_error *error = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if(!is_bus_connected(lb_ctx)) {
                 fprintf(stderr, "Bus is not opened\n");
-                sd_bus_error_free(error);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
@@ -518,20 +506,20 @@ lb_unpair_device(lb_context *lb_ctx, const char  *address)
                                address,
                                "org.bluez.Device1",
                                "CancelPairing",
-                               error,
+                               &error,
                                &m,
                                NULL);
 
         if(r < 0) {
-                fprintf(stderr, "Failed to issue method call: %s\n", error->message);
-                sd_bus_error_free(error);
+                fprintf(stderr, "Failed to issue method call: %s\n", error.message);
+                sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
 
         printf("Method Called: %s\n", "CancelPairing");
 
-        sd_bus_error_free(error);
+        sd_bus_error_free(&error);
         sd_bus_message_unref(m);
         return EXIT_SUCCESS;
 }
@@ -541,6 +529,45 @@ lb_write_to_char(lb_context *lb_ctx, const char *address, const char *value)
 {
         printf("Method Called: %s\n", __FUNCTION__);
         return EXIT_SUCCESS;
+}
+
+int
+lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_pointer)
+{
+        int i;
+        for(i = 0; i < lb_ctx->devices_size; i++) {
+                if (strncmp(device_path, lb_ctx->devices[i]->device_path, strlen(device_path)) == 0) {
+                        *bl_device_pointer = lb_ctx->devices[i];
+                        return EXIT_SUCCESS;
+                }
+        }
+        return EXIT_FAILURE;
+}
+
+int
+lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_pointer)
+{
+        int i;
+        for(i = 0; i < lb_ctx->devices_size; i++) {
+                if (strncmp(name, lb_ctx->devices[i]->name, strlen(name)) == 0) {
+                        *bl_device_pointer = lb_ctx->devices[i];
+                        return EXIT_SUCCESS;
+                }
+        }
+        return EXIT_FAILURE;
+}
+
+int
+lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_pointer)
+{
+        int i;
+        for(i = 0; i < lb_ctx->devices_size; i++) {
+                if (strncmp(address, lb_ctx->devices[i]->address, strlen(address)) == 0) {
+                        *bl_device_pointer = lb_ctx->devices[i];
+                        return EXIT_SUCCESS;
+                }
+        }
+        return EXIT_FAILURE;
 }
 
 int
@@ -557,14 +584,30 @@ main(int argc, char *argv[])
         lb_ctx->devices_size = 0;
 
         lb_open_system_bus(lb_ctx);
+
         lb_list_devices(lb_ctx, 5);
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
         }
-        lb_connect_device(lb_ctx, "/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
-        //lb_pair_device(lb_ctx, "/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
-        //lb_unpair_device(lb_ctx, "/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
-        lb_disconnect_device(lb_ctx, "/org/bluez/hci0/dev_98_4F_EE_0F_42_B4");
+
+        bl_device* firmata = NULL;
+        r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
+        if (r < 0) {
+                fprintf(stderr, "ERROR\n");
+                exit(r);
+        }
+
+        lb_connect_device(lb_ctx, firmata->device_path);
+
+        lb_pair_device(lb_ctx, firmata->device_path);
+
+        sleep(5);
+
+        lb_unpair_device(lb_ctx, firmata->device_path);
+
+        lb_disconnect_device(lb_ctx, firmata->device_path);
+
         lb_close_system_bus(lb_ctx);
+
         return 0;
 }
