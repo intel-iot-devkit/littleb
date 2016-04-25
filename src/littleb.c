@@ -22,48 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <systemd/sd-bus.h>
-
-#define MAX_LEN 256
-#define MAX_OBJECTS 256
-
-#define DEBUG 1
-
-typedef struct ble_characteristic
-{
-        const char *char_path;
-        const char *uuid;
-} ble_char;
-
-typedef struct ble_service
-{
-        const char *service_path;
-        const char *uuid;
-        bool primary;
-        ble_char **chars;
-        int chars_size;
-} ble_service;
-
-typedef struct bl_device
-{
-        const char *device_path;
-        const char *address;
-        const char *name;
-        ble_service **services;
-        int services_size;
-} bl_device;
-
-
-typedef struct lb_context
-{
-        sd_bus *bus;
-        bl_device **devices;
-        int devices_size;
-}lb_context;
+#include "../include/littleb.h"
 
 
 const char*
@@ -421,7 +380,7 @@ lb_open_system_bus(lb_context *lb_ctx)
         return r;
 }
 
-void
+int
 lb_close_system_bus(lb_context *lb_ctx)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -430,6 +389,7 @@ lb_close_system_bus(lb_context *lb_ctx)
                 free(lb_ctx->devices);
                 lb_ctx->devices_size = 0;
         }
+        return EXIT_SUCCESS;
 }
 
 int
@@ -456,9 +416,9 @@ lb_get_bl_devices(lb_context *lb_ctx, int seconds)
         get_root_objects(lb_ctx, objects);
 
         //if (r < 0) {
-        //	fprintf(stderr, "Error getting root objects\n");
-        //	free(objects);
-        //	return -1;
+        //      fprintf(stderr, "Error getting root objects\n");
+        //      free(objects);
+        //      return -1;
         //}
 
         while(objects[i] != NULL) {
@@ -657,13 +617,6 @@ lb_get_ble_device_services(lb_context *lb_ctx, const char* device_path, ble_serv
 }
 
 int
-lb_write_to_char(lb_context *lb_ctx, const char *address, const char *value)
-{
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
-        return EXIT_SUCCESS;
-}
-
-int
 lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_pointer)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -703,49 +656,4 @@ lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_devi
                 }
         }
         return EXIT_FAILURE;
-}
-
-int
-main(int argc, char *argv[])
-{
-        int i = 0, r = 0;
-        ble_service **services = NULL;
-        lb_context *lb_ctx = malloc(sizeof(lb_context));
-        if (r < 0)
-        {
-                exit(r);
-        }
-        lb_ctx->bus = NULL;
-        lb_ctx->devices = NULL;
-        lb_ctx->devices_size = 0;
-
-        lb_open_system_bus(lb_ctx);
-
-        lb_get_bl_devices(lb_ctx, 5);
-        for(i = 0; i < lb_ctx->devices_size; i++) {
-                printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
-        }
-
-        bl_device* firmata = NULL;
-        r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
-        if (r < 0) {
-                fprintf(stderr, "ERROR\n");
-                exit(r);
-        }
-
-        lb_connect_device(lb_ctx, firmata->device_path);
-
-        lb_pair_device(lb_ctx, firmata->device_path);
-
-        lb_get_ble_device_services(lb_ctx, firmata->device_path, services);
-
-        sleep(5);
-
-        lb_unpair_device(lb_ctx, firmata->device_path);
-
-        lb_disconnect_device(lb_ctx, firmata->device_path);
-
-        lb_close_system_bus(lb_ctx);
-
-        return 0;
 }
