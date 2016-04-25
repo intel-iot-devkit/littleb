@@ -31,11 +31,30 @@
 #define MAX_LEN 256
 #define MAX_OBJECTS 256
 
+#define DEBUG 1
+
+typedef struct ble_characteristic
+{
+        const char *char_path;
+        const char *uuid;
+} ble_char;
+
+typedef struct ble_service
+{
+        const char *service_path;
+        const char *uuid;
+        bool primary;
+        ble_char **chars;
+        int chars_size;
+} ble_service;
+
 typedef struct bl_device
 {
         const char *device_path;
         const char *address;
         const char *name;
+        ble_service **services;
+        int services_size;
 } bl_device;
 
 
@@ -50,6 +69,7 @@ typedef struct lb_context
 const char*
 convert_device_path_to_address(const char *address)
 {
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         int i;
         const char *prefix = "dev_";
 
@@ -75,6 +95,7 @@ convert_device_path_to_address(const char *address)
 bool
 is_bus_connected(lb_context *lb_ctx)
 {
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         if(lb_ctx->bus == NULL) {
                 return false;
         }
@@ -86,8 +107,8 @@ is_bus_connected(lb_context *lb_ctx)
 const char*
 get_device_name(lb_context *lb_ctx, const char *device_path)
 {
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         sd_bus_error error = SD_BUS_ERROR_NULL;
-        printf("Method Called: %s\n", __FUNCTION__);
         int r;
         char *name;
 
@@ -101,11 +122,46 @@ get_device_name(lb_context *lb_ctx, const char *device_path)
         return (const char *) name;
 }
 
-bool
-is_bl_device(lb_context *lb_ctx, const char *device_path)
+const char*
+get_device_address(lb_context *lb_ctx, const char *device_path)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         sd_bus_error error = SD_BUS_ERROR_NULL;
+        int r;
+        char *address;
+
+        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Address", &error, &address);
+        if(r < 0) {
+                fprintf(stderr, "Failed to issue method call: %s on %s\n", error.message, device_path);
+                sd_bus_error_free(&error);
+                return NULL;
+        }
+
+        return (const char *) address;
+}
+
+const char*
+get_device_path_uuid(lb_context *lb_ctx, const char *service_path, const char *interface)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+        int r;
+        char *name;
+
+        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", service_path, interface, "UUID", &error, &name);
+        if(r < 0) {
+                fprintf(stderr, "Failed to issue method call: %s on %s\n", error.message, service_path);
+                sd_bus_error_free(&error);
+                return NULL;
+        }
+
+        return (const char *) name;
+}
+
+bool
+is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, const char *str)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);        sd_bus_error error = SD_BUS_ERROR_NULL;
         sd_bus_message *m = NULL;
 
         int r;
@@ -141,49 +197,41 @@ is_bl_device(lb_context *lb_ctx, const char *device_path)
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
 
-        return (strstr(introspect_xml, "org.bluez.Device1") != NULL) ? true : false;
+        return (strstr(introspect_xml, str) != NULL) ? true : false;
+}
+
+bool
+is_bl_device(lb_context *lb_ctx, const char *device_path)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        return is_string_in_device_introspection(lb_ctx, device_path, "org.bluez.Device1");
+}
+
+bool
+is_ble_device(lb_context *lb_ctx, const char *device_path)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        return false;
+}
+
+bool
+is_ble_service(lb_context *lb_ctx, const char *service_path)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        return is_string_in_device_introspection(lb_ctx, service_path, "org.bluez.GattService1");
+}
+
+bool
+is_ble_characteristic(lb_context *lb_ctx, const char *service_path)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        return is_string_in_device_introspection(lb_ctx, service_path, "org.bluez.GattCharacteristic1");
 }
 
 int
-add_new_device(lb_context *lb_ctx, const char *device_path)
+get_root_objects(lb_context *lb_ctx, const char **objects)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
-
-        int current_index = lb_ctx->devices_size;
-        if(lb_ctx->devices_size == 0 || lb_ctx->devices == NULL) {
-                lb_ctx->devices = malloc(sizeof(bl_device*));
-                lb_ctx->devices_size++;
-        }
-        else {
-                lb_ctx->devices_size++;
-                lb_ctx->devices = realloc(lb_ctx->devices, (lb_ctx->devices_size)  *sizeof(bl_device*));
-                if(lb_ctx->devices == NULL) {
-                        fprintf(stderr, "Error reallocating memory for devices\n");
-                        return EXIT_FAILURE;
-                }
-        }
-
-        bl_device *new_device = malloc(sizeof(bl_device));
-
-        new_device->device_path = device_path;
-        const char *name = get_device_name(lb_ctx, device_path);
-        if(name == NULL) {
-                fprintf(stderr, "Error couldn't find device name\n");
-                new_device->name = "null";
-        }
-        else {
-                new_device->name = name;
-        }
-        new_device->address = convert_device_path_to_address(device_path);
-        lb_ctx->devices[current_index] = new_device;
-
-        return EXIT_SUCCESS;
-}
-
-int
-get_root_objects(lb_context *lb_ctx, const char* *objects)
-{
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         int r = 0, i = 0;
         const char *device_path;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -275,9 +323,54 @@ get_root_objects(lb_context *lb_ctx, const char* *objects)
 }
 
 int
+add_new_device(lb_context *lb_ctx, const char *device_path)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+
+        int current_index = lb_ctx->devices_size;
+        if(lb_ctx->devices_size == 0 || lb_ctx->devices == NULL) {
+                lb_ctx->devices = malloc(sizeof(bl_device*));
+                lb_ctx->devices_size++;
+        }
+        else {
+                lb_ctx->devices_size++;
+                lb_ctx->devices = realloc(lb_ctx->devices, (lb_ctx->devices_size)  *sizeof(bl_device*));
+                if(lb_ctx->devices == NULL) {
+                        fprintf(stderr, "Error reallocating memory for devices\n");
+                        return EXIT_FAILURE;
+                }
+        }
+
+        bl_device *new_device = malloc(sizeof(bl_device));
+
+        new_device->device_path = device_path;
+        const char *name = get_device_name(lb_ctx, device_path);
+        if(name == NULL) {
+                fprintf(stderr, "Error couldn't find device name\n");
+                new_device->name = "null";
+        }
+        else {
+                new_device->name = name;
+        }
+        const char *address = get_device_address(lb_ctx, device_path);
+        if(address == NULL) {
+                fprintf(stderr, "Error couldn't find device address\n");
+                new_device->address = "null";
+        }
+        else {
+                new_device->address = address;
+        }
+
+        //new_device->address = convert_device_path_to_address(device_path);
+        lb_ctx->devices[current_index] = new_device;
+
+        return EXIT_SUCCESS;
+}
+
+int
 scan_devices(lb_context *lb_ctx, int seconds)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         int r = 0;
         sd_bus_message *m = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -318,6 +411,7 @@ scan_devices(lb_context *lb_ctx, int seconds)
 int
 lb_open_system_bus(lb_context *lb_ctx)
 {
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int r;
         /* Connect to the system bus */
         r = sd_bus_open_system(&lb_ctx->bus);
@@ -330,6 +424,7 @@ lb_open_system_bus(lb_context *lb_ctx)
 void
 lb_close_system_bus(lb_context *lb_ctx)
 {
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         sd_bus_unref(lb_ctx->bus);
         if(lb_ctx->devices) {
                 free(lb_ctx->devices);
@@ -338,9 +433,9 @@ lb_close_system_bus(lb_context *lb_ctx)
 }
 
 int
-lb_list_devices(lb_context *lb_ctx, int seconds)
+lb_get_bl_devices(lb_context *lb_ctx, int seconds)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         const char* *objects;
         const char *point;
         int i = 0, r = 0;
@@ -377,12 +472,10 @@ lb_list_devices(lb_context *lb_ctx, int seconds)
         return EXIT_SUCCESS;
 }
 
-
-
 int
 lb_connect_device(lb_context *lb_ctx, const char  *address)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -418,7 +511,7 @@ lb_connect_device(lb_context *lb_ctx, const char  *address)
 int
 lb_disconnect_device(lb_context *lb_ctx, const char  *address)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -453,7 +546,7 @@ lb_disconnect_device(lb_context *lb_ctx, const char  *address)
 int
 lb_pair_device(lb_context *lb_ctx, const char  *address)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -489,7 +582,7 @@ lb_pair_device(lb_context *lb_ctx, const char  *address)
 int
 lb_unpair_device(lb_context *lb_ctx, const char  *address)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int r;
         sd_bus_message *m = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -525,15 +618,55 @@ lb_unpair_device(lb_context *lb_ctx, const char  *address)
 }
 
 int
+lb_get_ble_device_services(lb_context *lb_ctx, const char* device_path, ble_service **services)
+{
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+        const char *point;
+        int i = 0, r = 0;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+
+        if(lb_ctx->devices != NULL) {
+                free(lb_ctx->devices);
+        }
+
+        const char **objects = malloc(MAX_OBJECTS  *sizeof(const char *));
+        if(objects == NULL) {
+                fprintf(stderr, "Error allocating memory for objects array\n");
+                return EXIT_FAILURE;
+        }
+
+        get_root_objects(lb_ctx, objects);
+
+        //if (r < 0) {
+        //      fprintf(stderr, "Error getting root objects\n");
+        //      free(objects);
+        //      return -1;
+        //}
+
+        while(objects[i] != NULL) {
+                if(strstr(objects[i], device_path) && is_ble_service(lb_ctx, objects[i])) {
+                        printf("ble_service: %s\nuuid: %s\n", objects[i], get_device_path_uuid(lb_ctx, objects[i], "org.bluez.GattService1"));
+                }
+                if(strstr(objects[i], device_path) && is_ble_characteristic(lb_ctx, objects[i])) {
+                        printf("ble_characteristic: %s\nuuid: %s\n", objects[i], get_device_path_uuid(lb_ctx, objects[i], "org.bluez.GattCharacteristic1"));
+                }
+                i++;
+        }
+
+        return EXIT_SUCCESS;
+}
+
+int
 lb_write_to_char(lb_context *lb_ctx, const char *address, const char *value)
 {
-        printf("Method Called: %s\n", __FUNCTION__);
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         return EXIT_SUCCESS;
 }
 
 int
 lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_pointer)
 {
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int i;
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(device_path, lb_ctx->devices[i]->device_path, strlen(device_path)) == 0) {
@@ -547,6 +680,7 @@ lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_dev
 int
 lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_pointer)
 {
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int i;
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(name, lb_ctx->devices[i]->name, strlen(name)) == 0) {
@@ -560,6 +694,7 @@ lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **b
 int
 lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_pointer)
 {
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int i;
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(address, lb_ctx->devices[i]->address, strlen(address)) == 0) {
@@ -574,6 +709,7 @@ int
 main(int argc, char *argv[])
 {
         int i = 0, r = 0;
+        ble_service **services = NULL;
         lb_context *lb_ctx = malloc(sizeof(lb_context));
         if (r < 0)
         {
@@ -585,7 +721,7 @@ main(int argc, char *argv[])
 
         lb_open_system_bus(lb_ctx);
 
-        lb_list_devices(lb_ctx, 5);
+        lb_get_bl_devices(lb_ctx, 5);
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
         }
@@ -600,6 +736,8 @@ main(int argc, char *argv[])
         lb_connect_device(lb_ctx, firmata->device_path);
 
         lb_pair_device(lb_ctx, firmata->device_path);
+
+        lb_get_ble_device_services(lb_ctx, firmata->device_path, services);
 
         sleep(5);
 
