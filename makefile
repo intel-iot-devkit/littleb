@@ -1,2 +1,2 @@
 all:
-	gcc -g -O0 src/sdbus-client.c -o sdbus-client `pkg-config --cflags --libs libsystemd`
+	gcc -g -O0 src/littleb.c src/hello_littleb.c -o hello_littleb `pkg-config --cflags --libs libsystemd`
