@@ -27,20 +27,27 @@
 int
 main(int argc, char *argv[])
 {
-        int i = 0, r = 0;
+        int i = 0, j = 0, r = 0;
         ble_service **services = NULL;
-        lb_context *lb_ctx = malloc(sizeof(lb_context));
-        if (r < 0)
-        {
+        lb_context *lb_ctx = NULL;
+
+        r = lb_context_new(&lb_ctx);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_context_new\n");
                 exit(r);
         }
-        lb_ctx->bus = NULL;
-        lb_ctx->devices = NULL;
-        lb_ctx->devices_size = 0;
 
-        lb_open_system_bus(lb_ctx);
+        r = lb_open_system_bus(&lb_ctx);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_open_system_bus\n");
+                exit(r);
+        }
 
-        lb_get_bl_devices(lb_ctx, 5);
+        r = lb_get_bl_devices(lb_ctx, 5);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_get_bl_devices\n");
+                exit(r);
+        }
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
         }
@@ -48,23 +55,57 @@ main(int argc, char *argv[])
         bl_device* firmata = NULL;
         r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
         if (r < 0) {
-                fprintf(stderr, "ERROR\n");
+                fprintf(stderr, "ERROR: lb_get_device_by_device_name\n");
                 exit(r);
         }
 
-        lb_connect_device(lb_ctx, firmata->device_path);
+        r = lb_connect_device(lb_ctx, firmata);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_connect_device\n");
+                exit(r);
+        }
 
-        lb_pair_device(lb_ctx, firmata->device_path);
+        r = lb_pair_device(lb_ctx, firmata);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_pair_device\n");
+                exit(r);
+        }
 
-        lb_get_ble_device_services(lb_ctx, firmata->device_path, services);
+        r = lb_get_ble_device_services(lb_ctx, firmata, services);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_get_ble_device_services\n");
+                exit(r);
+        }
+
+        printf("Device Found:\nName: %s\nDevice Address: %s\n", firmata->name, firmata->address);
+        printf("Services found:\n");
+        for(i = 0; i < firmata->services_size; i++) {
+                printf("%s\t%s\n", firmata->services[i]->service_path, firmata->services[i]->uuid);
+                printf("Characteristics Found:\n");
+                for (j = 0; j < firmata->services[i]->characteristics_size; j++) {
+                        printf("%s\t%s\n", firmata->services[i]->characteristics[j]->char_path, firmata->services[i]->characteristics[j]->uuid);
+                }
+        }
 
         sleep(2);
 
-        lb_unpair_device(lb_ctx, firmata->device_path);
+        r = lb_unpair_device(lb_ctx, firmata);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_unpair_device\n");
+                exit(r);
+        }
 
-        lb_disconnect_device(lb_ctx, firmata->device_path);
+        r = lb_disconnect_device(lb_ctx, firmata);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_disconnect_device\n");
+                exit(r);
+        }
 
-        lb_close_system_bus(lb_ctx);
+        r = lb_close_system_bus(lb_ctx);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_close_system_bus\n");
+                exit(r);
+        }
 
         return 0;
 }
