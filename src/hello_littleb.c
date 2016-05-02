@@ -23,6 +23,7 @@
  */
 
 #include "../include/littleb.h"
+#include <pthread.h>
 
 int
 main(int argc, char *argv[])
@@ -52,6 +53,7 @@ main(int argc, char *argv[])
                 printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
         }
 
+        // search for our specific device named "FIRMATA"
         bl_device* firmata = NULL;
         r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
         if (r < 0) {
@@ -87,13 +89,27 @@ main(int argc, char *argv[])
                 }
         }
 
-        sleep(2);
-
-        r = lb_unpair_device(lb_ctx, firmata);
-        if (r < 0) {
-                fprintf(stderr, "ERROR: lb_unpair_device\n");
-                exit(r);
+        printf("Blinking...\n");
+        uint8_t led_on[] = { 0x91, 0x20, 0x00 };
+        uint8_t led_off[] = { 0x91, 0x00, 0x00 };
+        for(i = 0; i < 20; i++) {
+                r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
+                if (r < 0) {
+                        fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
+                }
+                sleep(0.5);
+                r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
+                if (r < 0) {
+                        fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
+                }
+                sleep(0.5);
         }
+
+        //r = lb_unpair_device(lb_ctx, firmata);
+        //if (r < 0) {
+        //        fprintf(stderr, "ERROR: lb_unpair_device\n");
+        //        exit(r);
+        //}
 
         r = lb_disconnect_device(lb_ctx, firmata);
         if (r < 0) {
@@ -106,6 +122,8 @@ main(int argc, char *argv[])
                 fprintf(stderr, "ERROR: lb_close_system_bus\n");
                 exit(r);
         }
+
+        printf("Done\n");
 
         return 0;
 }

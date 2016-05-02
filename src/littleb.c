@@ -73,7 +73,7 @@ get_device_name(lb_context *lb_ctx, const char *device_path)
 
         r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Name", &error, &name);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s on %s\n", error.message, device_path);
+                syslog(LOG_ERR, "sd_bus_get_property_string Name on device %s failed with error: %s\n", device_path, error.message);
                 sd_bus_error_free(&error);
                 return NULL;
         }
@@ -91,7 +91,7 @@ get_device_address(lb_context *lb_ctx, const char *device_path)
 
         r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Address", &error, &address);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s on %s\n", error.message, device_path);
+                syslog(LOG_ERR, "sd_bus_get_property_string Address on device %s failed with error: %s\n", device_path, error.message);
                 sd_bus_error_free(&error);
                 return NULL;
         }
@@ -109,7 +109,7 @@ get_service_uuid(lb_context *lb_ctx, const char *service_path)
 
         r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", service_path, "org.bluez.GattService1", "UUID", &error, &name);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s on %s\n", error.message, service_path);
+                syslog(LOG_ERR, "sd_bus_get_property_string UUID on service %s failed with error: %s\n",service_path, error.message);
                 sd_bus_error_free(&error);
                 return NULL;
         }
@@ -118,16 +118,16 @@ get_service_uuid(lb_context *lb_ctx, const char *service_path)
 }
 
 const char*
-get_characteristic_uuid(lb_context *lb_ctx, const char *service_path)
+get_characteristic_uuid(lb_context *lb_ctx, const char *characteristic_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         char *name;
 
-        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", service_path, "org.bluez.GattCharacteristic1", "UUID", &error, &name);
+        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", characteristic_path, "org.bluez.GattCharacteristic1", "UUID", &error, &name);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s on %s\n", error.message, service_path);
+                syslog(LOG_ERR, "sd_bus_get_property_string UUID on characteristic: %s failed with error: %s\n", characteristic_path, error.message);
                 sd_bus_error_free(&error);
                 return NULL;
         }
@@ -158,7 +158,7 @@ is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, c
                                &m,
                                NULL);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method Introspect on device %s failed with error: %s\n", device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);;
                 return false;
@@ -166,7 +166,7 @@ is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, c
 
         r = sd_bus_message_read_basic(m, 's', &introspect_xml);
         if(r < 0) {
-                syslog(LOG_ERR, "sd_bus_message_read_basic: %s\n", strerror(-r));
+                syslog(LOG_ERR, "sd_bus_message_read_basic failed with error: %s\n", strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return false;
@@ -216,7 +216,7 @@ is_service_primary(lb_context *lb_ctx, const char *service_path)
 
         r = sd_bus_get_property_trivial(lb_ctx->bus, "org.bluez", service_path, "org.bluez.GattService1", "Primary", &error, 'b', &primary);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s on %s\n", error.message, service_path);
+                syslog(LOG_ERR, "sd_bus_get_property_trivial Primary on service %s failed with error: %s\n", service_path, error.message);
                 sd_bus_error_free(&error);
                 return NULL;
         }
@@ -246,7 +246,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
                                &m,
                                NULL);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method GetManagedObjects failed with error: %s\n", error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -256,7 +256,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
         //"a{oa{sa{sv}}}"
         r = sd_bus_message_enter_container(m, 'a', "{oa{sa{sv}}}");
         if(r < 0) {
-                syslog(LOG_ERR, "sd_bus_message_enter_container {oa{sa{sv}}}: %s\n", strerror(-r));
+                syslog(LOG_ERR, "sd_bus_message_enter_container {oa{sa{sv}}} failed with error: %s\n", strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -265,7 +265,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
         while((r = sd_bus_message_enter_container(m, 'e', "oa{sa{sv}}")) > 0) {
                 r = sd_bus_message_read_basic(m, 'o', &device_path);
                 if(r < 0) {
-                        syslog(LOG_ERR, "sd_bus_message_read_basic: %s\n", strerror(-r));
+                        syslog(LOG_ERR, "sd_bus_message_read_basic failed with error: %s\n", strerror(-r));
                                 sd_bus_error_free(&error);
         sd_bus_message_unref(m);;
                 }
@@ -283,7 +283,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
 
                 r = sd_bus_message_skip(m, "a{sa{sv}}");
                 if(r < 0) {
-                        syslog(LOG_ERR, "sd_bus_message_skip: %s\n", strerror(-r));
+                        syslog(LOG_ERR, "sd_bus_message_skip failed with error: %s\n", strerror(-r));
                         sd_bus_error_free(&error);
                         sd_bus_message_unref(m);
                         return EXIT_FAILURE;
@@ -291,7 +291,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
 
                 r = sd_bus_message_exit_container(m);
                 if(r < 0) {
-                        syslog(LOG_ERR, "sd_bus_message_exit_container oa{sa{sv}}: %s\n", strerror(-r));
+                        syslog(LOG_ERR, "sd_bus_message_exit_container oa{sa{sv}} failed with error: %s\n", strerror(-r));
                         sd_bus_error_free(&error);
                         sd_bus_message_unref(m);
                         return EXIT_FAILURE;
@@ -299,7 +299,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
         }
 
         if(r < 0) {
-                syslog(LOG_ERR, "sd_bus_message_enter_container oa{sa{sv}}: %s\n", strerror(-r));
+                syslog(LOG_ERR, "sd_bus_message_enter_container oa{sa{sv}} failed with error: %s\n", strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -307,7 +307,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
 
         r = sd_bus_message_exit_container(m);
         if(r < 0) {
-                syslog(LOG_ERR, "sd_bus_message_exit_container {oa{sa{sv}}}: %s\n", strerror(-r));
+                syslog(LOG_ERR, "sd_bus_message_exit_container {oa{sa{sv}}} failed with error: %s\n", strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -463,7 +463,7 @@ scan_devices(lb_context *lb_ctx, int seconds)
         r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StartDiscovery", &error, &m,
         NULL);
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method StartDiscovery failed with error: %s\n", error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -475,7 +475,7 @@ scan_devices(lb_context *lb_ctx, int seconds)
         NULL);
 
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method StopDiscovery failed with error: %s\n", error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -611,7 +611,7 @@ lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev)
                                NULL);
 
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method Connect on device %s failed with error: %s\n", bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -647,6 +647,7 @@ lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev)
                                NULL);
 
         if(r < 0) {
+                syslog(LOG_ERR, "sd_bus_call_method Disconnect on device: %s failed with error: %s\n", bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -682,7 +683,7 @@ lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev)
                                NULL);
 
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method Pair on device %s failed with error: %s\n", bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
@@ -718,13 +719,11 @@ lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev)
                                NULL);
 
         if(r < 0) {
-                syslog(LOG_ERR, "Failed to issue method call: %s\n", error.message);
+                syslog(LOG_ERR, "sd_bus_call_method CancelPairing on device %s failed with error: %s\n", bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return EXIT_FAILURE;
         }
-
-        printf("Method Called: %s\n", "CancelPairing");
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
@@ -900,4 +899,53 @@ lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_devi
                 }
         }
         return EXIT_FAILURE;
+}
+
+int
+lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value)
+{
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+        int r, i;
+        sd_bus_message *m = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+        ble_char *characteristics = NULL;
+
+
+        if(!is_bus_connected(lb_ctx)) {
+                syslog(LOG_ERR, "Bus is not opened\n");
+                sd_bus_error_free(&error);
+                sd_bus_message_unref(m);
+                return EXIT_FAILURE;
+        }
+
+        r = lb_get_ble_characteristic_by_uuid(lb_ctx, bl_dev, uuid, &characteristics);
+        if (r < 0) {
+                syslog(LOG_ERR, "Failed to get characteristic\n");
+                return EXIT_FAILURE;
+        }
+
+        for (i = 0; i < size; i++) {
+                r = sd_bus_call_method(lb_ctx->bus,
+                                       "org.bluez",
+                                       characteristics->char_path,
+                                       "org.bluez.GattCharacteristic1",
+                                       "WriteValue",
+                                       &error,
+                                       &m,
+                                       "ay",
+                                       1,
+                                       value[i]);
+
+                if(r < 0) {
+                        syslog(LOG_ERR, "sd_bus_call_method WriteValue on characteristic %s failed with error: %s\n", characteristics->char_path, error.message);
+                        sd_bus_error_free(&error);
+                        sd_bus_message_unref(m);
+                        return EXIT_FAILURE;
+                }
+                sleep(0.1);
+        }
+
+        sd_bus_error_free(&error);
+        sd_bus_message_unref(m);
+        return EXIT_SUCCESS;
 }
