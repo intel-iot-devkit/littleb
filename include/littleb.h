@@ -21,6 +21,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#ifndef littleb
+#define littleb
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,7 +34,12 @@
 #define MAX_LEN 256
 #define MAX_OBJECTS 256
 
-#define DEBUG 1
+#define DEBUG 0
+
+static const char *BLUEZ_DEST = "org.bluez";
+static const char *BLUEZ_DEVICE = "org.bluez.Device1";
+static const char *BLUEZ_GATT_SERVICE = "org.bluez.GattService1";
+static const char *BLUEZ_GATT_CHARACTERISTICS = "org.bluez.GattCharacteristic1";
 
 typedef struct ble_characteristic
 {
@@ -82,4 +89,6 @@ int lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_servic
 int lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_ret);
 int lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_ret);
 int lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret);
+int lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value);
 
+#endif
