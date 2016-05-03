@@ -22,8 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "../include/littleb.h"
-
+#include "littleb.h"
 
 const char*
 convert_device_path_to_address(const char *address)
