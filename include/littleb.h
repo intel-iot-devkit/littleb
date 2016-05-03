@@ -21,8 +21,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef littleb
-#define littleb
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,4 +94,6 @@ int lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device
 int lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret);
 int lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value);
 
+#ifdef __cplusplus
+}
 #endif
