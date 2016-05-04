@@ -32,15 +32,15 @@ main(int argc, char *argv[])
         ble_service **services = NULL;
         lb_context *lb_ctx = NULL;
 
-        r = lb_context_new(&lb_ctx);
+        r = lb_init();
         if (r < 0) {
-                fprintf(stderr, "ERROR: lb_context_new\n");
+                fprintf(stderr, "ERROR: lb_init\n");
                 exit(r);
         }
 
-        r = lb_open_system_bus(&lb_ctx);
+        r = lb_context_new(&lb_ctx);
         if (r < 0) {
-                fprintf(stderr, "ERROR: lb_open_system_bus\n");
+                fprintf(stderr, "ERROR: lb_context_new\n");
                 exit(r);
         }
 
@@ -73,11 +73,11 @@ main(int argc, char *argv[])
                 exit(r);
         }
 
-        r = lb_pair_device(lb_ctx, firmata);
-        if (r < 0) {
-                fprintf(stderr, "ERROR: lb_pair_device\n");
-                exit(r);
-        }
+        //r = lb_pair_device(lb_ctx, firmata);
+        //if (r < 0) {
+        //        fprintf(stderr, "ERROR: lb_pair_device\n");
+        //        exit(r);
+        //}
 
         r = lb_get_ble_device_services(lb_ctx, firmata, services);
         if (r < 0) {
@@ -93,6 +93,22 @@ main(int argc, char *argv[])
                 for (j = 0; j < firmata->services[i]->characteristics_size; j++) {
                         printf("%s\t%s\n", firmata->services[i]->characteristics[j]->char_path, firmata->services[i]->characteristics[j]->uuid);
                 }
+        }
+
+        uint8_t get_version[] = { 0xf0, 0xf9, 0xf7 };
+        r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
+        }
+
+        sleep(2);
+
+        size_t size;
+        uint8_t *result;
+        r = lb_read_from_characteristic(lb_ctx, firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e", &size, &result);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_read_from_characteristic\n");
+                exit(r);
         }
 
         printf("Blinking...\n");
@@ -123,9 +139,15 @@ main(int argc, char *argv[])
                 exit(r);
         }
 
-        r = lb_close_system_bus(lb_ctx);
+        r = lb_context_free(&lb_ctx);
         if (r < 0) {
-                fprintf(stderr, "ERROR: lb_close_system_bus\n");
+                fprintf(stderr, "ERROR: lb_context_free\n");
+                exit(r);
+        }
+
+        r = lb_destroy();
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_destroy\n");
                 exit(r);
         }
 
