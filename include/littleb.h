@@ -93,6 +93,8 @@ int lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl
 int lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_ret);
 int lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret);
 int lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value);
+int lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t *value);
+int lb_register_for_device_data(lb_context *lb_ctx, sd_bus_message_handler_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
