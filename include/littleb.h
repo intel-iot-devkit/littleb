@@ -37,12 +37,27 @@ extern "C" {
 #define MAX_LEN 256
 #define MAX_OBJECTS 256
 
-#define DEBUG 0
+#define DEBUG 1
 
 static const char *BLUEZ_DEST = "org.bluez";
 static const char *BLUEZ_DEVICE = "org.bluez.Device1";
 static const char *BLUEZ_GATT_SERVICE = "org.bluez.GattService1";
 static const char *BLUEZ_GATT_CHARACTERISTICS = "org.bluez.GattCharacteristic1";
+
+/**
+ * LB return codes
+ */
+typedef enum {
+    LB_SUCCESS = 0,                             /**< Expected response */
+    LB_ERROR_FEATURE_NOT_IMPLEMENTED = 1,       /**< Feature TODO */
+    LB_ERROR_FEATURE_NOT_SUPPORTED = 2,         /**< Feature not supported by HW */
+    LB_ERROR_INVALID_VERBOSITY_LEVEL = 3,       /**< Verbosity level wrong */
+    LB_ERROR_INVALID_PARAMETER = 4,             /**< Parameter invalid */
+    LB_ERROR_INVALID_HANDLE = 5,                /**< Handle invalid */
+    LB_ERROR_NO_RESOURCES = 6,                  /**< No resource of that type avail */
+
+    LB_ERROR_UNSPECIFIED = 99 /**< Unknown Error */
+} lb_result_t;
 
 typedef struct ble_characteristic
 {
@@ -76,9 +91,10 @@ typedef struct lb_context
         int devices_size;
 }lb_context;
 
+int lb_init();
+int lb_destroy();
 int lb_context_new(lb_context **lb_ctx);
-int lb_open_system_bus(lb_context **lb_ctx);
-int lb_close_system_bus(lb_context *lb_ctx);
+int lb_context_free(lb_context **lb_ctx);
 int lb_get_bl_devices(lb_context *lb_ctx, int seconds);
 int lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev);
 int lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev);
@@ -93,7 +109,7 @@ int lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl
 int lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_ret);
 int lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret);
 int lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value);
-int lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t *value);
+int lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t **result);
 int lb_register_for_device_data(lb_context *lb_ctx, sd_bus_message_handler_t callback, void *userdata);
 
 #ifdef __cplusplus
