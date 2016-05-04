@@ -24,6 +24,8 @@
 
 #include "littleb.h"
 
+sd_event *event = NULL;
+
 const char*
 convert_device_path_to_address(const char *address)
 {
@@ -518,6 +520,14 @@ lb_open_system_bus(lb_context **lb_ctx)
         int r;
         lb_context *new_context = NULL;
 
+	r = sd_event_default(&event);
+	if (r < 0) {
+		syslog(LOG_ERR, "Failed to allocate event loop");
+	}
+
+        sd_event_set_watchdog(event, true);
+
+
         r = lb_context_new(&new_context);
         if(r < 0) {
                 syslog(LOG_ERR, "Failed to create new lb context\n");
@@ -528,6 +538,11 @@ lb_open_system_bus(lb_context **lb_ctx)
         if(r < 0) {
                 syslog(LOG_ERR, "Failed to connect to system bus: %s\n", strerror(-r));
         }
+
+	r = sd_bus_attach_event(new_context->bus, event, 0);
+	if (r < 0) {
+		syslog(LOG_ERR, "Failed to attach event loop");
+	}
 
         *lb_ctx = new_context;
         return r;
