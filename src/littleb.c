@@ -269,7 +269,7 @@ get_root_objects(lb_context *lb_ctx, const char **objects)
         sd_bus_message_unref(m);;
                 }
                 else {
-                        char *restrict new_device_path = malloc(strlen(device_path) + 1);
+                        char *restrict new_device_path = (char *restrict )malloc(strlen(device_path) + 1);
                         if(new_device_path == NULL) {
                                 syslog(LOG_ERR, "Error allocating memory for object name\n");
                                 sd_bus_error_free(&error);
@@ -324,7 +324,7 @@ add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *cha
 
         int current_index = service->characteristics_size;
         if(service->characteristics_size == 0 || service->characteristics == NULL) {
-                service->characteristics = malloc(sizeof(ble_char*));
+                service->characteristics = (ble_char **)malloc(sizeof(ble_char*));
                 service->characteristics_size++;
         }
         else {
@@ -336,7 +336,7 @@ add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *cha
                 }
         }
 
-        ble_char *new_characteristic= malloc(sizeof(ble_char));
+        ble_char *new_characteristic= (ble_char *)malloc(sizeof(ble_char));
 
         new_characteristic->char_path = characteristic_path;
 
@@ -361,7 +361,7 @@ add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path)
 
         int current_index = bl_dev->services_size;
         if(bl_dev->services_size == 0 || bl_dev->services == NULL) {
-                bl_dev->services = malloc(sizeof(ble_service*));
+                bl_dev->services = (ble_service**)malloc(sizeof(ble_service*));
                 bl_dev->services_size++;
         }
         else {
@@ -373,7 +373,7 @@ add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path)
                 }
         }
 
-        ble_service *new_service = malloc(sizeof(ble_service));
+        ble_service *new_service = (ble_service*)malloc(sizeof(ble_service));
 
         new_service->service_path = service_path;
 
@@ -403,7 +403,7 @@ add_new_device(lb_context *lb_ctx, const char *device_path)
 
         int current_index = lb_ctx->devices_size;
         if(lb_ctx->devices_size == 0 || lb_ctx->devices == NULL) {
-                lb_ctx->devices = malloc(sizeof(bl_device*));
+                lb_ctx->devices = (bl_device**)malloc(sizeof(bl_device*));
                 lb_ctx->devices_size++;
         }
         else {
@@ -415,7 +415,7 @@ add_new_device(lb_context *lb_ctx, const char *device_path)
                 }
         }
 
-        bl_device *new_device = malloc(sizeof(bl_device));
+        bl_device *new_device = (bl_device*)malloc(sizeof(bl_device));
 
         new_device->device_path = device_path;
         const char *name = get_device_name(lb_ctx, device_path);
@@ -495,7 +495,7 @@ lb_context_new(lb_context **lb_ctx)
                 return EXIT_FAILURE;
         }
 
-        lb_context *new_context = malloc(sizeof(lb_context));
+        lb_context *new_context = (lb_context*)malloc(sizeof(lb_context));
 
         if (new_context != NULL) {
                 new_context->bus = NULL;
@@ -558,7 +558,7 @@ lb_get_bl_devices(lb_context *lb_ctx, int seconds)
                 free(lb_ctx->devices);
         }
 
-        objects = malloc(MAX_OBJECTS  *sizeof(const char *));
+        objects = (const char **)calloc(MAX_OBJECTS, MAX_OBJECTS  *sizeof(const char *));
         if(objects == NULL) {
                 syslog(LOG_ERR, "Error allocating memory for objects array\n");
                 return EXIT_FAILURE;
@@ -741,7 +741,7 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
                 free(bl_dev->services);
         }
         else {
-                bl_dev->services = malloc(sizeof(lb_context));
+                bl_dev->services = (ble_service**)malloc(sizeof(ble_service*));
                 if (r < 0)
                 {
                         exit(r);
@@ -750,7 +750,7 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
                 bl_dev->services_size = 0;
         }
 
-        const char **objects = malloc(MAX_OBJECTS  *sizeof(const char *));
+        const char **objects = (const char **)calloc(MAX_OBJECTS, MAX_OBJECTS  *sizeof(const char *));
         if(objects == NULL) {
                 syslog(LOG_ERR, "Error allocating memory for objects array\n");
                 return EXIT_FAILURE;
@@ -923,28 +923,45 @@ lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uu
                 return EXIT_FAILURE;
         }
 
-        for (i = 0; i < size; i++) {
-                r = sd_bus_call_method(lb_ctx->bus,
-                                       "org.bluez",
-                                       characteristics->char_path,
-                                       "org.bluez.GattCharacteristic1",
-                                       "WriteValue",
-                                       &error,
-                                       &m,
-                                       "ay",
-                                       1,
-                                       value[i]);
-
-                if(r < 0) {
-                        syslog(LOG_ERR, "sd_bus_call_method WriteValue on characteristic %s failed with error: %s\n", characteristics->char_path, error.message);
-                        sd_bus_error_free(&error);
-                        sd_bus_message_unref(m);
-                        return EXIT_FAILURE;
-                }
-                sleep(0.1);
+        r = sd_bus_message_new_method_call(lb_ctx->bus,
+                               &m,
+                               "org.bluez",
+                               characteristics->char_path,
+                               "org.bluez.GattCharacteristic1",
+                               "WriteValue");
+        if (r < 0) {
+                syslog(LOG_ERR, "Failed to create message call\n");
+                return EXIT_FAILURE;
         }
+
+        r = sd_bus_message_append_array(m, 'y', value, size);
+        if (r < 0) {
+                syslog(LOG_ERR, "Failed to append array to message call\n");
+                return EXIT_FAILURE;
+        }
+
+        r = sd_bus_call(lb_ctx->bus, m, 0, &error, NULL);
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
+        return EXIT_SUCCESS;
+}
+
+static int test_callback(sd_bus_message *message, void *userdata, sd_bus_error *error)
+{
+        printf("callback called\n");
+        return EXIT_SUCCESS;
+}
+
+int
+lb_register_for_device_data(lb_context *lb_ctx, sd_bus_message_handler_t callback, void *userdata)
+{
+        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+        int r;
+        r = sd_bus_add_match(lb_ctx->bus, NULL, "type=signal", test_callback, userdata);
+        if (r < 0) {
+                syslog(LOG_ERR, "Failed on sd_bus_add_object\n");
+                return EXIT_FAILURE;
+        }
         return EXIT_SUCCESS;
 }

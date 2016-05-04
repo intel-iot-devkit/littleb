@@ -44,6 +44,12 @@ main(int argc, char *argv[])
                 exit(r);
         }
 
+        // TODO: this is just a test remove later
+        r = lb_register_for_device_data(lb_ctx, NULL, NULL);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_register_for_device_data\n");
+        }
+
         r = lb_get_bl_devices(lb_ctx, 5);
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_get_bl_devices\n");
@@ -92,17 +98,17 @@ main(int argc, char *argv[])
         printf("Blinking...\n");
         uint8_t led_on[] = { 0x91, 0x20, 0x00 };
         uint8_t led_off[] = { 0x91, 0x00, 0x00 };
-        for(i = 0; i < 20; i++) {
+        for(i = 0; i < 10; i++) {
                 r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
                 if (r < 0) {
                         fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
                 }
-                sleep(0.5);
+                sleep(1);
                 r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
                 if (r < 0) {
                         fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
                 }
-                sleep(0.5);
+                sleep(1);
         }
 
         //r = lb_unpair_device(lb_ctx, firmata);
