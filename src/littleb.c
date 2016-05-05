@@ -64,7 +64,7 @@ _is_bus_connected(lb_context *lb_ctx)
         }
 }
 
-int
+lb_result_t
 _get_root_objects(lb_context *lb_ctx, const char **objects)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
@@ -78,7 +78,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                "/",
                                "org.freedesktop.DBus.ObjectManager",
                                "GetManagedObjects",
@@ -89,7 +89,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                 syslog(LOG_ERR, "%s: sd_bus_call_method GetManagedObjects failed with error: %s", __FUNCTION__, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         /* Parse the response message */
@@ -99,7 +99,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                 syslog(LOG_ERR, "%s: sd_bus_message_enter_container {oa{sa{sv}}} failed with error: %s", __FUNCTION__, strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         while((r = sd_bus_message_enter_container(m, 'e', "oa{sa{sv}}")) > 0) {
@@ -115,7 +115,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                                 syslog(LOG_ERR, "%s: Error allocating memory for object name", __FUNCTION__);
                                 sd_bus_error_free(&error);
                                 sd_bus_message_unref(m);
-                                return EXIT_FAILURE;
+                                return -LB_ERROR_UNSPECIFIED;
                         }
                         objects[i] = strcpy(new_device_path, device_path);
                         i++;
@@ -126,7 +126,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                         syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
                         sd_bus_error_free(&error);
                         sd_bus_message_unref(m);
-                        return EXIT_FAILURE;
+                        return -LB_ERROR_UNSPECIFIED;
                 }
 
                 r = sd_bus_message_exit_container(m);
@@ -134,7 +134,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                         syslog(LOG_ERR, "%s: sd_bus_message_exit_container oa{sa{sv}} failed with error: %s", __FUNCTION__, strerror(-r));
                         sd_bus_error_free(&error);
                         sd_bus_message_unref(m);
-                        return EXIT_FAILURE;
+                        return -LB_ERROR_UNSPECIFIED;
                 }
         }
 
@@ -142,7 +142,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                 syslog(LOG_ERR, "%s: sd_bus_message_enter_container oa{sa{sv}} failed with error: %s", __FUNCTION__, strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_message_exit_container(m);
@@ -150,12 +150,12 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
                 syslog(LOG_ERR, "%s: sd_bus_message_exit_container {oa{sa{sv}}} failed with error: %s", __FUNCTION__, strerror(-r));
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
 const char*
@@ -166,7 +166,7 @@ _get_device_name(lb_context *lb_ctx, const char *device_path)
         int r;
         char *name;
 
-        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Name", &error, &name);
+        r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Name", &error, &name);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_get_property_string Name on device %s failed with error: %s", __FUNCTION__, device_path, error.message);
                 sd_bus_error_free(&error);
@@ -184,7 +184,7 @@ _get_device_address(lb_context *lb_ctx, const char *device_path)
         int r;
         char *address;
 
-        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", device_path, "org.bluez.Device1", "Address", &error, &address);
+        r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Address", &error, &address);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_get_property_string Address on device %s failed with error: %s", __FUNCTION__, device_path, error.message);
                 sd_bus_error_free(&error);
@@ -202,7 +202,7 @@ _get_service_uuid(lb_context *lb_ctx, const char *service_path)
         int r;
         char *name;
 
-        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", service_path, "org.bluez.GattService1", "UUID", &error, &name);
+        r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, service_path, "org.bluez.GattService1", "UUID", &error, &name);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_get_property_string UUID on service %s failed with error: %s", __FUNCTION__,service_path, error.message);
                 sd_bus_error_free(&error);
@@ -220,7 +220,7 @@ _get_characteristic_uuid(lb_context *lb_ctx, const char *characteristic_path)
         int r;
         char *name;
 
-        r = sd_bus_get_property_string(lb_ctx->bus, "org.bluez", characteristic_path, "org.bluez.GattCharacteristic1", "UUID", &error, &name);
+        r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, characteristic_path, BLUEZ_GATT_CHARACTERISTICS, "UUID", &error, &name);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_get_property_string UUID on characteristic: %s failed with error: %s", __FUNCTION__, characteristic_path, error.message);
                 sd_bus_error_free(&error);
@@ -233,7 +233,8 @@ _get_characteristic_uuid(lb_context *lb_ctx, const char *characteristic_path)
 bool
 _is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, const char *str)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);        sd_bus_error error = SD_BUS_ERROR_NULL;
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        sd_bus_error error = SD_BUS_ERROR_NULL;
         sd_bus_message *m = NULL;
 
         int r;
@@ -244,7 +245,7 @@ _is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, 
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                device_path,
                                "org.freedesktop.DBus.Introspectable",
                                "Introspect",
@@ -276,7 +277,7 @@ bool
 _is_bl_device(lb_context *lb_ctx, const char *device_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
-        return _is_string_in_device_introspection(lb_ctx, device_path, "org.bluez.Device1");
+        return _is_string_in_device_introspection(lb_ctx, device_path, BLUEZ_DEVICE);
 }
 
 bool
@@ -289,13 +290,13 @@ _is_ble_device(lb_context *lb_ctx, const char *device_path)
 
         if (!_is_bl_device(lb_ctx, device_path)) {
                 syslog(LOG_ERR, "%s: not a bl device", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         objects = (const char **)calloc(MAX_OBJECTS, MAX_OBJECTS  *sizeof(const char *));
         if(objects == NULL) {
                 syslog(LOG_ERR, "%s: Error allocating memory for objects array", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = _get_root_objects(lb_ctx, objects);
@@ -321,14 +322,14 @@ bool
 _is_ble_service(lb_context *lb_ctx, const char *service_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
-        return _is_string_in_device_introspection(lb_ctx, service_path, "org.bluez.GattService1");
+        return _is_string_in_device_introspection(lb_ctx, service_path, BLUEZ_GATT_SERVICE);
 }
 
 bool
 _is_ble_characteristic(lb_context *lb_ctx, const char *service_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
-        return _is_string_in_device_introspection(lb_ctx, service_path, "org.bluez.GattCharacteristic1");
+        return _is_string_in_device_introspection(lb_ctx, service_path, BLUEZ_GATT_CHARACTERISTICS);
 }
 
 bool
@@ -339,7 +340,7 @@ _is_service_primary(lb_context *lb_ctx, const char *service_path)
         int r;
         bool primary;
 
-        r = sd_bus_get_property_trivial(lb_ctx->bus, "org.bluez", service_path, "org.bluez.GattService1", "Primary", &error, 'b', &primary);
+        r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, service_path, "org.bluez.GattService1", "Primary", &error, 'b', &primary);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_get_property_trivial Primary on service %s failed with error: %s", __FUNCTION__, service_path, error.message);
                 sd_bus_error_free(&error);
@@ -349,7 +350,25 @@ _is_service_primary(lb_context *lb_ctx, const char *service_path)
         return primary;
 }
 
-int
+bool
+_is_device_paired(lb_context *lb_ctx, const char *device_path)
+{
+        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+        int r;
+        bool paired;
+
+        r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Paired", &error, 'b', &paired);
+        if(r < 0) {
+                syslog(LOG_ERR, "%s: sd_bus_get_property_trivial Paired on device %s failed with error: %s", __FUNCTION__, device_path, error.message);
+                sd_bus_error_free(&error);
+                return NULL;
+        }
+
+        return paired;
+}
+
+lb_result_t
 _add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *characteristic_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
@@ -364,7 +383,7 @@ _add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *ch
                 service->characteristics = realloc(service->characteristics, (service->characteristics_size) * sizeof(ble_char*));
                 if(service->characteristics == NULL) {
                         syslog(LOG_ERR, "%s: Error reallocating memory for characteristics", __FUNCTION__);
-                        return EXIT_FAILURE;
+                        return -LB_ERROR_UNSPECIFIED;
                 }
         }
 
@@ -383,17 +402,17 @@ _add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *ch
 
         service->characteristics[current_index] = new_characteristic;
 
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 _add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
 
         if (!_is_ble_device(lb_ctx,bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         int current_index = bl_dev->services_size;
@@ -406,7 +425,7 @@ _add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path
                 bl_dev->services = realloc(bl_dev->services, (bl_dev->services_size) * sizeof(ble_service*));
                 if(bl_dev->services == NULL) {
                         syslog(LOG_ERR, "%s: Error reallocating memory for services", __FUNCTION__);
-                        return EXIT_FAILURE;
+                        return -LB_ERROR_UNSPECIFIED;
                 }
         }
 
@@ -430,10 +449,10 @@ _add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path
 
         bl_dev->services[current_index] = new_service;
 
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 _add_new_device(lb_context *lb_ctx, const char *device_path)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
@@ -448,7 +467,7 @@ _add_new_device(lb_context *lb_ctx, const char *device_path)
                 lb_ctx->devices = realloc(lb_ctx->devices, (lb_ctx->devices_size)  *sizeof(bl_device*));
                 if(lb_ctx->devices == NULL) {
                         syslog(LOG_ERR, "%s: Error reallocating memory for devices", __FUNCTION__);
-                        return EXIT_FAILURE;
+                        return -LB_ERROR_UNSPECIFIED;
                 }
         }
 
@@ -478,10 +497,10 @@ _add_new_device(lb_context *lb_ctx, const char *device_path)
         //new_device->address = convert_device_path_to_address(device_path);
         lb_ctx->devices[current_index] = new_device;
 
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 _scan_devices(lb_context *lb_ctx, int seconds)
 {
         if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
@@ -493,36 +512,36 @@ _scan_devices(lb_context *lb_ctx, int seconds)
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
-        r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StartDiscovery", &error, &m,
+        r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1", "StartDiscovery", &error, &m,
         NULL);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_call_method StartDiscovery failed with error: %s", __FUNCTION__, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sleep(seconds);
 
-        r = sd_bus_call_method(lb_ctx->bus, "org.bluez", "/org/bluez/hci0", "org.bluez.Adapter1", "StopDiscovery", &error, &m,
+        r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1", "StopDiscovery", &error, &m,
         NULL);
 
         if(r < 0) {
                 syslog(LOG_ERR, "%s: sd_bus_call_method StopDiscovery failed with error: %s", __FUNCTION__, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 _open_system_bus(lb_context *lb_ctx)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -537,7 +556,7 @@ _open_system_bus(lb_context *lb_ctx)
         return r;
 }
 
-int
+lb_result_t
 _close_system_bus(lb_context *lb_ctx)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -546,10 +565,10 @@ _close_system_bus(lb_context *lb_ctx)
                 free(lb_ctx->devices);
                 lb_ctx->devices_size = 0;
         }
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_init()
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -557,24 +576,24 @@ lb_init()
         r = sd_event_default(&event);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to allocate event loop", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_event_set_watchdog(event, true);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to set watchdog", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_destroy()
 {
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_context_new(lb_context **lb_ctx)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -583,14 +602,14 @@ lb_context_new(lb_context **lb_ctx)
 
         if(*lb_ctx != NULL) {
                 syslog(LOG_ERR, "%s: lb_context is not empty!", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         new_context = (lb_context*)malloc(sizeof(lb_context));
 
         if (new_context == NULL) {
                 syslog(LOG_ERR, "%s: Error allocating memory for lb_context", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         new_context->bus = NULL;
@@ -600,20 +619,20 @@ lb_context_new(lb_context **lb_ctx)
         r = _open_system_bus(new_context);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: Failed to open system bus: %s", __FUNCTION__, strerror(-r));
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
-        r = sd_bus_attach_event(new_context->bus, event, 0);
+        r = sd_bus_attach_event(new_context->bus, event, SD_EVENT_PRIORITY_NORMAL);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to attach event loop", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         *lb_ctx = new_context;
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_context_free(lb_context **lb_ctx)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -621,16 +640,16 @@ lb_context_free(lb_context **lb_ctx)
         r = _close_system_bus(*lb_ctx);
         if(r < 0) {
                 syslog(LOG_ERR, "%s: Failed to open system bus: %s", __FUNCTION__, strerror(-r));
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         if (lb_ctx != NULL) {
 
         }
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_get_bl_devices(lb_context *lb_ctx, int seconds)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -646,7 +665,7 @@ lb_get_bl_devices(lb_context *lb_ctx, int seconds)
         objects = (const char **)calloc(MAX_OBJECTS, MAX_OBJECTS  *sizeof(const char *));
         if(objects == NULL) {
                 syslog(LOG_ERR, "%s: Error allocating memory for objects array", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         _scan_devices(lb_ctx, seconds);
@@ -667,10 +686,10 @@ lb_get_bl_devices(lb_context *lb_ctx, int seconds)
         }
 
         free(objects);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -682,13 +701,13 @@ lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                bl_dev->device_path,
-                               "org.bluez.Device1",
+                               BLUEZ_DEVICE,
                                "Connect",
                                &error,
                                &m,
@@ -698,15 +717,15 @@ lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: sd_bus_call_method Connect on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -718,13 +737,13 @@ lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                bl_dev->device_path,
-                               "org.bluez.Device1",
+                               BLUEZ_DEVICE,
                                "Disconnect",
                                &error,
                                &m,
@@ -734,15 +753,15 @@ lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: sd_bus_call_method Disconnect on device: %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -754,13 +773,13 @@ lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                bl_dev->device_path,
-                               "org.bluez.Device1",
+                               BLUEZ_DEVICE,
                                "Pair",
                                &error,
                                &m,
@@ -770,15 +789,15 @@ lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: sd_bus_call_method Pair on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -790,13 +809,13 @@ lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                bl_dev->device_path,
-                               "org.bluez.Device1",
+                               BLUEZ_DEVICE,
                                "CancelPairing",
                                &error,
                                &m,
@@ -806,15 +825,15 @@ lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev)
                 syslog(LOG_ERR, "%s: sd_bus_call_method CancelPairing on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **services)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -823,8 +842,16 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
-                syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-                return EXIT_FAILURE;
+                syslog(LOG_ERR, "%s: device %s not a ble device", __FUNCTION__, bl_dev->device_path);
+                return -LB_ERROR_UNSPECIFIED;
+        }
+
+        if (!_is_device_paired(lb_ctx, bl_dev->device_path)) {
+                r = lb_pair_device(lb_ctx, bl_dev);
+                if (r < 0) {
+                        syslog(LOG_ERR, "%s: error pairing device", __FUNCTION__);
+                        return -LB_ERROR_UNSPECIFIED;
+                }
         }
 
         if(bl_dev->services != NULL) {
@@ -843,14 +870,14 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
         const char **objects = (const char **)calloc(MAX_OBJECTS, MAX_OBJECTS  *sizeof(const char *));
         if(objects == NULL) {
                 syslog(LOG_ERR, "%s: Error allocating memory for objects array", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = _get_root_objects(lb_ctx, objects);
         if (r < 0) {
               syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
               //free(objects);
-              return EXIT_FAILURE;
+              return -LB_ERROR_UNSPECIFIED;
         }
 
         while(objects[i] != NULL) {
@@ -885,10 +912,10 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
 
         free(objects);
 
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_get_ble_characteristic_by_characteristic_path(lb_context *lb_ctx, bl_device *bl_dev, const char *characteristic_path, ble_char **ble_characteristic_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -897,14 +924,14 @@ lb_get_ble_characteristic_by_characteristic_path(lb_context *lb_ctx, bl_device *
                 for (j = 0; bl_dev->services[i]->characteristics_size; j++) {
                         if (strncmp(characteristic_path, bl_dev->services[i]->characteristics[j]->char_path, strlen(characteristic_path)) == 0) {
                                 *ble_characteristic_ret = bl_dev->services[i]->characteristics[j];
-                                return EXIT_SUCCESS;
+                                return LB_SUCCESS;
                         }
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_get_ble_characteristic_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, ble_char **ble_characteristic_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -912,21 +939,21 @@ lb_get_ble_characteristic_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const c
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         for(i = 0; i < bl_dev->services_size; i++) {
                 for (j = 0; bl_dev->services_size; j++) {
                         if (strncmp(uuid, bl_dev->services[i]->characteristics[j]->uuid, strlen(uuid)) == 0) {
                                 *ble_characteristic_ret = bl_dev->services[i]->characteristics[j];
-                                return EXIT_SUCCESS;
+                                return LB_SUCCESS;
                         }
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_get_ble_service_by_service_path(lb_context *lb_ctx, bl_device *bl_dev, const char *service_path, ble_service **ble_service_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -934,13 +961,13 @@ lb_get_ble_service_by_service_path(lb_context *lb_ctx, bl_device *bl_dev, const 
         for(i = 0; i < bl_dev->services_size; i++) {
                 if (strncmp(service_path, bl_dev->services[i]->service_path, strlen(service_path)) == 0) {
                         *ble_service_ret = bl_dev->services[i];
-                        return EXIT_SUCCESS;
+                        return LB_SUCCESS;
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_get_ble_service_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, ble_service **ble_service_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -948,19 +975,19 @@ lb_get_ble_service_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uu
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         for(i = 0; i < bl_dev->services_size; i++) {
                 if (strncmp(uuid, bl_dev->services[i]->uuid, strlen(uuid)) == 0) {
                         *ble_service_ret = bl_dev->services[i];
-                        return EXIT_SUCCESS;
+                        return LB_SUCCESS;
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -968,13 +995,13 @@ lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_dev
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(device_path, lb_ctx->devices[i]->device_path, strlen(device_path)) == 0) {
                         *bl_device_ret = lb_ctx->devices[i];
-                        return EXIT_SUCCESS;
+                        return LB_SUCCESS;
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -982,13 +1009,13 @@ lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **b
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(name, lb_ctx->devices[i]->name, strlen(name)) == 0) {
                         *bl_device_ret = lb_ctx->devices[i];
-                        return EXIT_SUCCESS;
+                        return LB_SUCCESS;
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -996,13 +1023,13 @@ lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_devi
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(address, lb_ctx->devices[i]->address, strlen(address)) == 0) {
                         *bl_device_ret = lb_ctx->devices[i];
-                        return EXIT_SUCCESS;
+                        return LB_SUCCESS;
                 }
         }
-        return EXIT_FAILURE;
+        return -LB_ERROR_UNSPECIFIED;
 }
 
-int
+lb_result_t
 lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -1015,35 +1042,35 @@ lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uu
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = lb_get_ble_characteristic_by_uuid(lb_ctx, bl_dev, uuid, &characteristics);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_message_new_method_call(lb_ctx->bus,
                                &m,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                characteristics->char_path,
-                               "org.bluez.GattCharacteristic1",
+                               BLUEZ_GATT_CHARACTERISTICS,
                                "WriteValue");
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to create message call", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_message_append_array(m, 'y', value, size);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to append array to message call", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_call(lb_ctx->bus, m, 0, &error, NULL);
@@ -1051,15 +1078,15 @@ lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uu
                 syslog(LOG_ERR, "%s: sd_bus_call WriteValue on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t **result)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
@@ -1072,24 +1099,24 @@ lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* u
                 syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = lb_get_ble_characteristic_by_uuid(lb_ctx, bl_dev, uuid, &characteristics);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_call_method(lb_ctx->bus,
-                               "org.bluez",
+                               BLUEZ_DEST,
                                characteristics->char_path,
-                               "org.bluez.GattCharacteristic1",
+                               BLUEZ_GATT_CHARACTERISTICS,
                                "ReadValue",
                                &error,
                                &m,
@@ -1098,7 +1125,7 @@ lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* u
                 syslog(LOG_ERR, "%s: sd_bus_call_method ReadValue on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         r = sd_bus_message_read_array(m, 'y', (const void**) result, size);
@@ -1106,29 +1133,47 @@ lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* u
                 syslog(LOG_ERR, "%s: Failed to read byte array message", __FUNCTION__);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
 
         sd_bus_error_free(&error);
         sd_bus_message_unref(m);
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
 static int test_callback(sd_bus_message *message, void *userdata, sd_bus_error *error)
 {
         printf("callback called\n");
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
 
-int
+lb_result_t
 lb_register_for_device_data(lb_context *lb_ctx, sd_bus_message_handler_t callback, void *userdata)
 {
         if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
         int r;
-        r = sd_bus_add_match(lb_ctx->bus, NULL, "type=signal", test_callback, userdata);
+        sd_bus_message *m = NULL;
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+
+        r = sd_bus_call_method(lb_ctx->bus,
+                               BLUEZ_DEST,
+                               "/org/bluez/hci0/dev_98_4F_EE_0F_42_B4/service0009/char000d",
+                               BLUEZ_GATT_CHARACTERISTICS,
+                               "StartNotify",
+                               &error,
+                               &m,
+                               NULL);
+        if (r < 0) {
+                syslog(LOG_ERR, "%s: sd_bus_call_method StartNotifying on device %s failed with error: %s", __FUNCTION__, "test", error.message);
+                sd_bus_error_free(&error);
+                sd_bus_message_unref(m);
+                return -LB_ERROR_UNSPECIFIED;
+        }
+
+        r = sd_bus_add_match(lb_ctx->bus, NULL, "path='/org/bluez/hci0/dev_98_4F_EE_0F_42_B4/service0009/char000d'", test_callback, userdata);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed on sd_bus_add_object", __FUNCTION__);
-                return EXIT_FAILURE;
+                return -LB_ERROR_UNSPECIFIED;
         }
-        return EXIT_SUCCESS;
+        return LB_SUCCESS;
 }
