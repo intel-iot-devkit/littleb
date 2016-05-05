@@ -44,12 +44,6 @@ main(int argc, char *argv[])
                 exit(r);
         }
 
-        // TODO: this is just a test remove later
-        r = lb_register_for_device_data(lb_ctx, NULL, NULL);
-        if (r < 0) {
-                fprintf(stderr, "ERROR: lb_register_for_device_data\n");
-        }
-
         r = lb_get_bl_devices(lb_ctx, 5);
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_get_bl_devices\n");
@@ -63,14 +57,16 @@ main(int argc, char *argv[])
         bl_device* firmata = NULL;
         r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
         if (r < 0) {
-                fprintf(stderr, "ERROR: lb_get_device_by_device_name\n");
+                fprintf(stderr, "ERROR: Device FIRMATA not found\n");
                 exit(r);
         }
 
-        r = lb_connect_device(lb_ctx, firmata);
-        if (r < 0) {
-                fprintf(stderr, "ERROR: lb_connect_device\n");
-                exit(r);
+        int retry = 0;
+        while (lb_connect_device(lb_ctx, firmata) < 0) {
+                if (retry == 10) exit(-EXIT_FAILURE);
+                retry++;
+                fprintf(stderr, "ERROR: lb_connect_device retrying\n");
+                sleep(0.1);
         }
 
         //r = lb_pair_device(lb_ctx, firmata);
@@ -95,7 +91,13 @@ main(int argc, char *argv[])
                 }
         }
 
-        uint8_t get_version[] = { 0xf0, 0xf9, 0xf7 };
+        // TODO: this is just a test remove later
+        r = lb_register_for_device_data(lb_ctx, NULL, NULL);
+        if (r < 0) {
+                fprintf(stderr, "ERROR: lb_register_for_device_data\n");
+        }
+
+        uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
@@ -110,6 +112,11 @@ main(int argc, char *argv[])
                 fprintf(stderr, "ERROR: lb_read_from_characteristic\n");
                 exit(r);
         }
+        for (int i = 0; i < size; i++) {
+                printf("%x ", result[i]);
+                fflush(stdout);
+        }
+        printf("\n");
 
         printf("Blinking");
         fflush(stdout);
