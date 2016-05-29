@@ -841,8 +841,8 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
         int i = 0, r = 0;
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
-        if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
-                syslog(LOG_ERR, "%s: device %s not a ble device", __FUNCTION__, bl_dev->device_path);
+        if (!_is_bl_device(lb_ctx, bl_dev->device_path)) {
+                syslog(LOG_ERR, "%s: device %s not a bl device", __FUNCTION__, bl_dev->device_path);
                 return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -1073,9 +1073,15 @@ lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uu
                 return -LB_ERROR_UNSPECIFIED;
         }
 
+        r = sd_bus_message_append(m, "a{sv}", 0, NULL);
+        if (r < 0) {
+                syslog(LOG_ERR, "%s: Failed to append a{sv} to message call", __FUNCTION__);
+                return -LB_ERROR_UNSPECIFIED;
+        }
+
         r = sd_bus_call(lb_ctx->bus, m, 0, &error, NULL);
         if (r < 0) {
-                syslog(LOG_ERR, "%s: sd_bus_call WriteValue on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
+                syslog(LOG_ERR, "%s: sd_bus_call WriteValue on device %s failed with error: %s", __FUNCTION__, characteristics->char_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return -LB_ERROR_UNSPECIFIED;
@@ -1104,12 +1110,16 @@ lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* u
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
+                sd_bus_error_free(&error);
+                sd_bus_message_unref(m);
                 return -LB_ERROR_UNSPECIFIED;
         }
 
         r = lb_get_ble_characteristic_by_uuid(lb_ctx, bl_dev, uuid, &characteristics);
         if (r < 0) {
                 syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
+                sd_bus_error_free(&error);
+                sd_bus_message_unref(m);
                 return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -1120,9 +1130,10 @@ lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* u
                                "ReadValue",
                                &error,
                                &m,
+                               "a{sv}",
                                NULL);
         if (r < 0) {
-                syslog(LOG_ERR, "%s: sd_bus_call_method ReadValue on device %s failed with error: %s", __FUNCTION__, bl_dev->device_path, error.message);
+                syslog(LOG_ERR, "%s: sd_bus_call_method ReadValue on device %s failed with error: %s", __FUNCTION__, characteristics->char_path, error.message);
                 sd_bus_error_free(&error);
                 sd_bus_message_unref(m);
                 return -LB_ERROR_UNSPECIFIED;
