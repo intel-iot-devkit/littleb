@@ -30,7 +30,6 @@ main(int argc, char *argv[])
 {
         int i = 0, j = 0, r = 0;
         ble_service **services = NULL;
-        lb_context *lb_ctx = NULL;
 
         r = lb_init();
         if (r < 0) {
@@ -38,8 +37,8 @@ main(int argc, char *argv[])
                 exit(r);
         }
 
-        r = lb_context_new(&lb_ctx);
-        if (r < 0) {
+        lb_context *lb_ctx = lb_context_new(&lb_ctx);
+        if (lb_ctx == NULL) {
                 fprintf(stderr, "ERROR: lb_context_new\n");
                 exit(r);
         }
@@ -92,11 +91,6 @@ main(int argc, char *argv[])
         }
 
         // TODO: this is just a test remove later
-        r = lb_register_for_device_data(lb_ctx, NULL, NULL);
-        if (r < 0) {
-                fprintf(stderr, "ERROR: lb_register_for_device_data\n");
-        }
-
         uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
         if (r < 0) {
@@ -149,19 +143,16 @@ main(int argc, char *argv[])
         r = lb_disconnect_device(lb_ctx, firmata);
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_disconnect_device\n");
-                exit(r);
         }
 
-        r = lb_context_free(&lb_ctx);
+        r = lb_context_free(lb_ctx);
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_context_free\n");
-                exit(r);
         }
 
         r = lb_destroy();
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_destroy\n");
-                exit(r);
         }
 
         printf("Done\n");

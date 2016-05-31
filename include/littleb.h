@@ -55,6 +55,7 @@ typedef enum {
     LB_ERROR_INVALID_PARAMETER = 4,             /**< Parameter invalid */
     LB_ERROR_INVALID_HANDLE = 5,                /**< Handle invalid */
     LB_ERROR_NO_RESOURCES = 6,                  /**< No resource of that type avail */
+    LB_ERROR_MEMEORY_ALLOCATION = 7,            /**< Memory allocation fail */
 
     LB_ERROR_UNSPECIFIED = 99 /**< Unknown Error */
 } lb_result_t;
@@ -93,8 +94,8 @@ typedef struct lb_context
 
 lb_result_t lb_init();
 lb_result_t lb_destroy();
-lb_result_t lb_context_new(lb_context **lb_ctx);
-lb_result_t lb_context_free(lb_context **lb_ctx);
+lb_context* lb_context_new();
+lb_result_t lb_context_free(lb_context *lb_ctx);
 lb_result_t lb_get_bl_devices(lb_context *lb_ctx, int seconds);
 lb_result_t lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev);
 lb_result_t lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev);
@@ -110,7 +111,7 @@ lb_result_t lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, b
 lb_result_t lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret);
 lb_result_t lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value);
 lb_result_t lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t **result);
-lb_result_t lb_register_for_device_data(lb_context *lb_ctx, sd_bus_message_handler_t callback, void *userdata);
+lb_result_t lb_register_characteristic_read_event(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, sd_bus_message_handler_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
