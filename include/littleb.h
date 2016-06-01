@@ -32,6 +32,7 @@ extern "C" {
 #include <stdbool.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <pthread.h>
 #include <systemd/sd-bus.h>
 
 #define MAX_LEN 256
