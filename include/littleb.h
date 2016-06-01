@@ -95,21 +95,21 @@ lb_result_t lb_destroy();
 lb_context* lb_context_new();
 lb_result_t lb_context_free(lb_context *lb_ctx);
 lb_result_t lb_get_bl_devices(lb_context *lb_ctx, int seconds);
-lb_result_t lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev);
-lb_result_t lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev);
-lb_result_t lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev);
-lb_result_t lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev);
-lb_result_t lb_get_ble_characteristic_by_characteristic_path(lb_context *lb_ctx, bl_device *bl_dev, const char *characteristic_path, ble_char **ble_characteristic_ret);
-lb_result_t lb_get_ble_characteristic_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, ble_char **ble_characteristic_ret);
-lb_result_t lb_get_ble_service_by_service_path(lb_context *lb_ctx, bl_device *bl_dev, const char *service_path, ble_service **ble_service_ret);
-lb_result_t lb_get_ble_service_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, ble_service **ble_service_ret);
-lb_result_t lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **services);
+lb_result_t lb_connect_device(lb_context *lb_ctx, bl_device* dev);
+lb_result_t lb_disconnect_device(lb_context *lb_ctx, bl_device* dev);
+lb_result_t lb_pair_device(lb_context *lb_ctx, bl_device* dev);
+lb_result_t lb_unpair_device(lb_context *lb_ctx, bl_device* dev);
+lb_result_t lb_get_ble_characteristic_by_characteristic_path(lb_context *lb_ctx, bl_device *dev, const char *characteristic_path, ble_char **ble_characteristic_ret);
+lb_result_t lb_get_ble_characteristic_by_uuid(lb_context *lb_ctx, bl_device *dev, const char *uuid, ble_char **ble_characteristic_ret);
+lb_result_t lb_get_ble_service_by_service_path(lb_context *lb_ctx, bl_device *dev, const char *service_path, ble_service **ble_service_ret);
+lb_result_t lb_get_ble_service_by_uuid(lb_context *lb_ctx, bl_device *dev, const char *uuid, ble_service **ble_service_ret);
+lb_result_t lb_get_ble_device_services(lb_context *lb_ctx, bl_device* dev, ble_service **services);
 lb_result_t lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_ret);
 lb_result_t lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_ret);
 lb_result_t lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret);
-lb_result_t lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value);
-lb_result_t lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t **result);
-lb_result_t lb_register_characteristic_read_event(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, sd_bus_message_handler_t callback, void *userdata);
+lb_result_t lb_write_to_characteristic(lb_context *lb_ctx, bl_device *dev, const char* uuid, int size, uint8_t *value);
+lb_result_t lb_read_from_characteristic(lb_context *lb_ctx, bl_device *dev, const char* uuid, size_t *size, uint8_t **result);
+lb_result_t lb_register_characteristic_read_event(lb_context *lb_ctx, bl_device *dev, const char *uuid, sd_bus_message_handler_t callback, void *userdata);
 
 #ifdef __cplusplus
 }
