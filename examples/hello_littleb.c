@@ -29,7 +29,6 @@ int
 main(int argc, char *argv[])
 {
         int i = 0, j = 0, r = 0;
-        ble_service **services = NULL;
 
         r = lb_init();
         if (r < 0) {
@@ -74,7 +73,7 @@ main(int argc, char *argv[])
         //        exit(r);
         //}
 
-        r = lb_get_ble_device_services(lb_ctx, firmata, services);
+        r = lb_get_ble_device_services(lb_ctx, firmata);
         if (r < 0) {
                 fprintf(stderr, "ERROR: lb_get_ble_device_services\n");
                 exit(r);

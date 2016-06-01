@@ -913,7 +913,7 @@ lb_unpair_device(lb_context *lb_ctx, bl_device* dev)
 }
 
 lb_result_t
-lb_get_ble_device_services(lb_context *lb_ctx, bl_device* dev, ble_service **services)
+lb_get_ble_device_services(lb_context *lb_ctx, bl_device* dev)
 {
 #ifdef DEBUG
         printf("Method Called: %s\n", __FUNCTION__);
