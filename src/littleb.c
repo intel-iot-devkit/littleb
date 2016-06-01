@@ -119,7 +119,7 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
         sd_bus_message_unref(reply);;
                 }
                 else {
-                        char *restrict new_device_path = (char *restrict )malloc(strlen(device_path) + 1);
+                        char* new_device_path = (char*)malloc(strlen(device_path) + 1);
                         if(new_device_path == NULL) {
                                 syslog(LOG_ERR, "%s: Error allocating memory for object name", __FUNCTION__);
                                 sd_bus_error_free(&error);
