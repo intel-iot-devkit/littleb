@@ -37,8 +37,6 @@ extern "C" {
 #define MAX_LEN 256
 #define MAX_OBJECTS 256
 
-#define DEBUG 0
-
 static const char *BLUEZ_DEST = "org.bluez";
 static const char *BLUEZ_DEVICE = "org.bluez.Device1";
 static const char *BLUEZ_GATT_SERVICE = "org.bluez.GattService1";
