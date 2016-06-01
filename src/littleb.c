@@ -24,7 +24,33 @@
 
 #include "littleb.h"
 
-sd_event *event = NULL;
+static sd_event *event = NULL;
+static pthread_t event_thread;
+
+void *_run_event_loop()
+{
+        int r;
+        printf("Thread Started\n");
+        /*
+        r = sd_event_loop(event);
+        if (r < 0) {
+                syslog(LOG_ERR, "%s: Failed to run event loop: %s", __FUNCTION__, strerror(-r));
+                return NULL;
+        }
+        */
+
+        while (sd_event_get_state(event) != SD_EVENT_FINISHED) {
+                sd_event_run(event, (uint64_t) -1);
+                if (r < 0) {
+                        sd_event_get_exit_code(event, &r);
+                        syslog(LOG_ERR, "%s: Error sd_event_run with code %d", __FUNCTION__, r);
+                        return NULL;
+                }
+                sleep(1);
+        }
+        printf("Thread Ended\n");
+        return NULL;
+}
 
 const char*
 _convert_device_path_to_address(const char *address)
@@ -650,7 +676,7 @@ lb_init()
         int r;
         r = sd_event_default(&event);
         if (r < 0) {
-                syslog(LOG_ERR, "%s: Failed to allocate event loop", __FUNCTION__);
+                syslog(LOG_ERR, "%s: Failed to set default event", __FUNCTION__);
                 return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -668,6 +694,16 @@ lb_destroy()
 #ifdef DEBUG
         printf("Method Called: %s\n", __FUNCTION__);
 #endif
+        int r;
+
+        r = sd_event_exit(event, 0);
+        if (r < 0) {
+                syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
+        }
+
+        sd_event_unref(event);
+        pthread_join(event_thread, NULL);
+
         return LB_SUCCESS;
 }
 
@@ -701,6 +737,10 @@ lb_context_new()
                 syslog(LOG_ERR, "%s: Failed to attach event loop", __FUNCTION__);
                 return NULL;
         }
+
+        pthread_create(&event_thread, NULL, _run_event_loop, NULL);
+        // wait for thread to start
+        sleep(2);
 
         return new_context;
 }
