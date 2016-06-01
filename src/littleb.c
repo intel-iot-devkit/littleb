@@ -29,7 +29,9 @@ sd_event *event = NULL;
 const char*
 _convert_device_path_to_address(const char *address)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i;
         const char *prefix = "dev_";
 
@@ -55,7 +57,9 @@ _convert_device_path_to_address(const char *address)
 bool
 _is_bus_connected(lb_context *lb_ctx)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         if(lb_ctx->bus == NULL) {
                 return false;
         }
@@ -67,7 +71,9 @@ _is_bus_connected(lb_context *lb_ctx)
 lb_result_t
 _get_root_objects(lb_context *lb_ctx, const char **objects)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r = 0, i = 0;
         const char *device_path;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -161,7 +167,9 @@ _get_root_objects(lb_context *lb_ctx, const char **objects)
 const char*
 _get_device_name(lb_context *lb_ctx, const char *device_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         char *name;
@@ -179,7 +187,9 @@ _get_device_name(lb_context *lb_ctx, const char *device_path)
 const char*
 _get_device_address(lb_context *lb_ctx, const char *device_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         char *address;
@@ -197,7 +207,9 @@ _get_device_address(lb_context *lb_ctx, const char *device_path)
 const char*
 _get_service_uuid(lb_context *lb_ctx, const char *service_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         char *name;
@@ -215,7 +227,9 @@ _get_service_uuid(lb_context *lb_ctx, const char *service_path)
 const char*
 _get_characteristic_uuid(lb_context *lb_ctx, const char *characteristic_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         char *name;
@@ -233,7 +247,9 @@ _get_characteristic_uuid(lb_context *lb_ctx, const char *characteristic_path)
 bool
 _is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, const char *str)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         sd_bus_message *reply = NULL;
 
@@ -276,7 +292,9 @@ _is_string_in_device_introspection(lb_context *lb_ctx, const char *device_path, 
 bool
 _is_bl_device(lb_context *lb_ctx, const char *device_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         return _is_string_in_device_introspection(lb_ctx, device_path, BLUEZ_DEVICE);
 }
 
@@ -284,7 +302,9 @@ bool
 _is_ble_device(lb_context *lb_ctx, const char *device_path)
 {
 
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         const char* *objects;
         int i = 0, r = 0;
 
@@ -321,21 +341,27 @@ _is_ble_device(lb_context *lb_ctx, const char *device_path)
 bool
 _is_ble_service(lb_context *lb_ctx, const char *service_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         return _is_string_in_device_introspection(lb_ctx, service_path, BLUEZ_GATT_SERVICE);
 }
 
 bool
 _is_ble_characteristic(lb_context *lb_ctx, const char *service_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         return _is_string_in_device_introspection(lb_ctx, service_path, BLUEZ_GATT_CHARACTERISTICS);
 }
 
 bool
 _is_service_primary(lb_context *lb_ctx, const char *service_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         bool primary;
@@ -353,7 +379,9 @@ _is_service_primary(lb_context *lb_ctx, const char *service_path)
 bool
 _is_device_paired(lb_context *lb_ctx, const char *device_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_error error = SD_BUS_ERROR_NULL;
         int r;
         bool paired;
@@ -371,8 +399,9 @@ _is_device_paired(lb_context *lb_ctx, const char *device_path)
 lb_result_t
 _add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *characteristic_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
-
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int current_index = service->characteristics_size;
         if(service->characteristics_size == 0 || service->characteristics == NULL) {
                 service->characteristics = (ble_char **)malloc(sizeof(ble_char*));
@@ -417,8 +446,9 @@ _add_new_characteristic(lb_context *lb_ctx, ble_service *service, const char *ch
 lb_result_t
 _add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
-
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         if (!_is_ble_device(lb_ctx,bl_dev->device_path)) {
                 syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
                 return -LB_ERROR_UNSPECIFIED;
@@ -473,8 +503,9 @@ _add_new_service(lb_context *lb_ctx, bl_device* bl_dev, const char *service_path
 lb_result_t
 _add_new_device(lb_context *lb_ctx, const char *device_path)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
-
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int current_index = lb_ctx->devices_size;
         if(lb_ctx->devices_size == 0 || lb_ctx->devices == NULL) {
                 lb_ctx->devices = (bl_device**)malloc(sizeof(bl_device*));
@@ -530,7 +561,9 @@ _add_new_device(lb_context *lb_ctx, const char *device_path)
 lb_result_t
 _scan_devices(lb_context *lb_ctx, int seconds)
 {
-        if (DEBUG > 1) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r = 0;
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -566,7 +599,9 @@ _scan_devices(lb_context *lb_ctx, int seconds)
 lb_result_t
 _open_system_bus(lb_context *lb_ctx)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
 
         /* Connect to the system bus */
@@ -581,7 +616,9 @@ _open_system_bus(lb_context *lb_ctx)
 lb_result_t
 _close_system_bus(lb_context *lb_ctx)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         sd_bus_unref(lb_ctx->bus);
         if(lb_ctx->devices) {
                 free(lb_ctx->devices);
@@ -593,7 +630,9 @@ _close_system_bus(lb_context *lb_ctx)
 lb_result_t
 lb_init()
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
         r = sd_event_default(&event);
         if (r < 0) {
@@ -612,13 +651,18 @@ lb_init()
 lb_result_t
 lb_destroy()
 {
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         return LB_SUCCESS;
 }
 
 lb_context*
 lb_context_new()
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r = 0;
         lb_context *new_context;
 
@@ -650,7 +694,9 @@ lb_context_new()
 lb_result_t
 lb_context_free(lb_context *lb_ctx)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r = 0, i = 0, j = 0, k= 0;
         r = _close_system_bus(lb_ctx);
         if(r < 0) {
@@ -677,7 +723,9 @@ lb_context_free(lb_context *lb_ctx)
 lb_result_t
 lb_get_bl_devices(lb_context *lb_ctx, int seconds)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         const char* *objects;
         const char *point;
         int i = 0, r = 0;
@@ -717,7 +765,9 @@ lb_get_bl_devices(lb_context *lb_ctx, int seconds)
 lb_result_t
 lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -749,7 +799,9 @@ lb_connect_device(lb_context *lb_ctx, bl_device* bl_dev)
 lb_result_t
 lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -781,7 +833,9 @@ lb_disconnect_device(lb_context *lb_ctx, bl_device* bl_dev)
 lb_result_t
 lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -813,7 +867,9 @@ lb_pair_device(lb_context *lb_ctx, bl_device* bl_dev)
 lb_result_t
 lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
         sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -845,7 +901,9 @@ lb_unpair_device(lb_context *lb_ctx, bl_device* bl_dev)
 lb_result_t
 lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **services)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         const char *point;
         int i = 0, r = 0;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -919,7 +977,9 @@ lb_get_ble_device_services(lb_context *lb_ctx, bl_device* bl_dev, ble_service **
 lb_result_t
 lb_get_ble_characteristic_by_characteristic_path(lb_context *lb_ctx, bl_device *bl_dev, const char *characteristic_path, ble_char **ble_characteristic_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i, j;
         for(i = 0; i < bl_dev->services_size; i++) {
                 for (j = 0; bl_dev->services[i]->characteristics_size; j++) {
@@ -935,7 +995,9 @@ lb_get_ble_characteristic_by_characteristic_path(lb_context *lb_ctx, bl_device *
 lb_result_t
 lb_get_ble_characteristic_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, ble_char **ble_characteristic_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i, j;
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
@@ -957,7 +1019,9 @@ lb_get_ble_characteristic_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const c
 lb_result_t
 lb_get_ble_service_by_service_path(lb_context *lb_ctx, bl_device *bl_dev, const char *service_path, ble_service **ble_service_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i;
         for(i = 0; i < bl_dev->services_size; i++) {
                 if (strncmp(service_path, bl_dev->services[i]->service_path, strlen(service_path)) == 0) {
@@ -971,7 +1035,9 @@ lb_get_ble_service_by_service_path(lb_context *lb_ctx, bl_device *bl_dev, const 
 lb_result_t
 lb_get_ble_service_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, ble_service **ble_service_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i;
 
         if (!_is_ble_device(lb_ctx, bl_dev->device_path)) {
@@ -991,7 +1057,9 @@ lb_get_ble_service_by_uuid(lb_context *lb_ctx, bl_device *bl_dev, const char *uu
 lb_result_t
 lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_device **bl_device_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i;
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(device_path, lb_ctx->devices[i]->device_path, strlen(device_path)) == 0) {
@@ -1005,7 +1073,9 @@ lb_get_device_by_device_path(lb_context *lb_ctx, const char *device_path, bl_dev
 lb_result_t
 lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **bl_device_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i;
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(name, lb_ctx->devices[i]->name, strlen(name)) == 0) {
@@ -1019,7 +1089,9 @@ lb_get_device_by_device_name(lb_context *lb_ctx, const char *name, bl_device **b
 lb_result_t
 lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_device **bl_device_ret)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int i;
         for(i = 0; i < lb_ctx->devices_size; i++) {
                 if (strncmp(address, lb_ctx->devices[i]->address, strlen(address)) == 0) {
@@ -1033,7 +1105,9 @@ lb_get_device_by_device_address(lb_context *lb_ctx, const char *address, bl_devi
 lb_result_t
 lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, int size, uint8_t *value)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r, i;
         sd_bus_message *func_call = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -1096,7 +1170,9 @@ lb_write_to_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uu
 lb_result_t
 lb_read_from_characteristic(lb_context *lb_ctx, bl_device *bl_dev, const char* uuid, size_t *size, uint8_t **result)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r, i;
         sd_bus_message *reply = NULL;
         sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -1162,7 +1238,9 @@ static int test_callback(sd_bus_message *message, void *userdata, sd_bus_error *
 lb_result_t
 lb_register_characteristic_read_event(lb_context *lb_ctx, bl_device *bl_dev, const char *uuid, sd_bus_message_handler_t callback, void *userdata)
 {
-        if (DEBUG > 0) printf("Method Called: %s\n", __FUNCTION__);
+#ifdef DEBUG
+        printf("Method Called: %s\n", __FUNCTION__);
+#endif
         int r;
         sd_bus_error error = SD_BUS_ERROR_NULL;
         ble_char *ble_char_new = NULL;
