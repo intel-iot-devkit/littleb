@@ -137,6 +137,7 @@ main(int argc, char *argv[])
         }
         printf("\n");
 
+        printf("get_version\n");
         uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
         if (r < 0) {
