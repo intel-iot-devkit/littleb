@@ -50,7 +50,11 @@ void *_run_event_loop()
                         syslog(LOG_ERR, "%s: Error sd_event_run with code %d", __FUNCTION__, r);
                         return NULL;
                 }
-                sleep(1);
+                r = sched_yield();
+                if (r < 0) {
+                        syslog(LOG_ERR, "%s: Error sched_yield with code %d", __FUNCTION__, r);
+                }
+
         }
         //*/
         printf("Thread Ended\n");
