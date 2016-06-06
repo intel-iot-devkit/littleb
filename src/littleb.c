@@ -21,43 +21,53 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include "littleb.h"
 
 static sd_event* event = NULL;
 static pthread_t event_thread;
 static pthread_mutex_t lock;
+static event_pair** event_arr = NULL;
+static uint event_arr_size = 0;
 
 void*
-_run_event_loop()
+_run_event_loop(void* arg)
 {
     int r;
-    printf("Thread Started\n");
-    /*
+    int i;
+    sd_bus* bus = *((sd_bus**) arg);
+
+    r = sd_event_default(&event);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Failed to set default event", __FUNCTION__);
+        return NULL;
+    }
+
+    r = sd_event_set_watchdog(event, true);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Failed to set watchdog", __FUNCTION__);
+        return NULL;
+    }
+
+    r = sd_bus_attach_event(bus, event, SD_EVENT_PRIORITY_NORMAL);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Failed to attach event loop", __FUNCTION__);
+        return NULL;
+    }
+
+    for (i = 0; i < event_arr_size; i++) {
+        r = sd_bus_add_match(bus, NULL, event_arr[i]->event, *(event_arr[i]->callback), NULL);
+        if (r < 0) {
+            syslog(LOG_ERR, "%s: Failed on sd_bus_add_match with error %d", __FUNCTION__, r);
+            return NULL;
+        }
+    }
+
     r = sd_event_loop(event);
     if (r < 0) {
-            syslog(LOG_ERR, "%s: Failed to run event loop: %s", __FUNCTION__, strerror(-r));
-            return NULL;
+        syslog(LOG_ERR, "%s: Failed to run event loop: %s", __FUNCTION__, strerror(-r));
+        return NULL;
     }
-    */
 
-    ///*
-    while (sd_event_get_state(event) != SD_EVENT_FINISHED) {
-        pthread_mutex_lock(&lock);
-        sd_event_run(event, 1000);
-        pthread_mutex_unlock(&lock);
-        if (r < 0) {
-            sd_event_get_exit_code(event, &r);
-            syslog(LOG_ERR, "%s: Error sd_event_run with code %d", __FUNCTION__, r);
-            return NULL;
-        }
-        r = sched_yield();
-        if (r < 0) {
-            syslog(LOG_ERR, "%s: Error sched_yield with code %d", __FUNCTION__, r);
-        }
-    }
-    //*/
-    printf("Thread Ended\n");
     return NULL;
 }
 
@@ -700,17 +710,6 @@ lb_init()
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int r;
-    r = sd_event_default(&event);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed to set default event", __FUNCTION__);
-        return -LB_ERROR_UNSPECIFIED;
-    }
-
-    r = sd_event_set_watchdog(event, true);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed to set watchdog", __FUNCTION__);
-        return -LB_ERROR_UNSPECIFIED;
-    }
 
     if (pthread_mutex_init(&lock, NULL) != 0) {
         syslog(LOG_ERR, "%s: mutex init failed", __FUNCTION__);
@@ -727,12 +726,12 @@ lb_destroy()
 #endif
     int r;
 
-    r = sd_event_exit(event, 0);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
-    }
+    pthread_kill(event_thread, SIGINT);
+    // r = sd_event_exit(event, 0);_
+    //    syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
+    //}
 
-    sd_event_unref(event);
+    // sd_event_unref(event);
     pthread_join(event_thread, NULL);
     pthread_mutex_destroy(&lock);
 
@@ -763,16 +762,6 @@ lb_context_new()
         syslog(LOG_ERR, "%s: Failed to open system bus: %s", __FUNCTION__, strerror(-r));
         return NULL;
     }
-
-    r = sd_bus_attach_event(new_context->bus, event, SD_EVENT_PRIORITY_NORMAL);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed to attach event loop", __FUNCTION__);
-        return NULL;
-    }
-
-    pthread_create(&event_thread, NULL, _run_event_loop, NULL);
-    // wait for thread to start
-    sleep(2);
 
     return new_context;
 }
@@ -1201,12 +1190,6 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
         return -LB_ERROR_INVALID_BUS;
     }
 
-    if (!_is_ble_device(lb_ctx, dev->device_path)) {
-        syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
-        sd_bus_error_free(&error);
-        return -LB_ERROR_INVALID_DEVICE;
-    }
-
     r = lb_get_ble_characteristic_by_uuid(lb_ctx, dev, uuid, &characteristics);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
@@ -1310,13 +1293,6 @@ lb_read_from_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid
     return LB_SUCCESS;
 }
 
-static int
-test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
-{
-    printf("callback called\n");
-    return LB_SUCCESS;
-}
-
 lb_result_t
 lb_register_characteristic_read_event(lb_context* lb_ctx,
                                       bl_device* dev,
@@ -1352,13 +1328,35 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
 
     snprintf(match, 66, "path='%s'", ble_char_new->char_path);
 
-    r = sd_bus_add_match(lb_ctx->bus, NULL,
-                         "path='/org/bluez/hci0/dev_98_4F_EE_0F_42_B4/service0009/char000d'", callback, NULL);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed on sd_bus_add_match with error %d", __FUNCTION__, r);
-        sd_bus_error_free(&error);
-        return -LB_ERROR_UNSPECIFIED;
+    int current_index = event_arr_size;
+    if (event_arr_size == 0 || event_arr == NULL) {
+        event_arr = (event_pair**) malloc(sizeof(event_pair*));
+        if (event_arr == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for event_arr", __FUNCTION__);
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
+        event_arr_size++;
+    } else {
+        event_arr_size++;
+        event_arr = realloc(event_arr, event_arr_size * sizeof(event_pair*));
+        if (event_arr == NULL) {
+            syslog(LOG_ERR, "%s: Error reallocating memory for event_arr", __FUNCTION__);
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
     }
+
+    event_pair* new_event_pair = (event_pair*) malloc(sizeof(event_pair));
+    if (new_event_pair == NULL) {
+        syslog(LOG_ERR, "%s: Error reallocating memory for event_arr", __FUNCTION__);
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
+    new_event_pair->event = match;
+    new_event_pair->callback = &callback;
+    event_arr[current_index] = new_event_pair;
+
+    pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
+    // wait for thread to start
+    sleep(2);
 
     sd_bus_error_free(&error);
     return LB_SUCCESS;
