@@ -87,6 +87,11 @@ typedef struct lb_context {
     int devices_size;    /**< count of devices found*/
 } lb_context;
 
+typedef struct event_callback_pair {
+    const char* event;
+    sd_bus_message_handler_t* callback;
+} event_pair;
+
 
 /**
  * Initialize littleb.

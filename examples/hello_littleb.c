@@ -97,34 +97,11 @@ main(int argc, char* argv[])
         }
     }
 
-    // TODO: this is just a test remove later
-    r = lb_register_characteristic_read_event(lb_ctx, firmata,
-                                              "6e400003-b5a3-f393-e0a9-e50e24dcca9e", test_callback, NULL);
-    if (r < 0) {
-        fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
-    }
-
-    /*
-    size_t size;
-    uint8_t *result;
-    r = lb_read_from_characteristic(lb_ctx, firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e", &size,
-    &result);
-    if (r < 0) {
-            fprintf(stderr, "ERROR: lb_read_from_characteristic\n");
-            exit(r);
-    }
-    for (int i = 0; i < size; i++) {
-            printf("%x ", result[i]);
-            fflush(stdout);
-    }
-    printf("\n");
-    */
-
     printf("Blinking");
     fflush(stdout);
     uint8_t led_on[] = { 0x91, 0x20, 0x00 };
     uint8_t led_off[] = { 0x91, 0x00, 0x00 };
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 5; i++) {
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
@@ -142,12 +119,22 @@ main(int argc, char* argv[])
     }
     printf("\n");
 
+    // TODO: this is just a test remove later
+    r = lb_register_characteristic_read_event(lb_ctx, firmata,
+                                              "6e400003-b5a3-f393-e0a9-e50e24dcca9e", test_callback, NULL);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
+    }
+
     printf("get_version\n");
     uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
     r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
     }
+
+    printf("waiting for callbacks\n");
+    sleep(5);
 
     // r = lb_unpair_device(lb_ctx, firmata);
     // if (r < 0) {
