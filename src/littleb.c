@@ -21,6 +21,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include "littleb.h"
 
 static sd_event* event = NULL;
@@ -39,12 +40,6 @@ _run_event_loop(void* arg)
     r = sd_event_default(&event);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to set default event", __FUNCTION__);
-        return NULL;
-    }
-
-    r = sd_event_set_watchdog(event, true);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed to set watchdog", __FUNCTION__);
         return NULL;
     }
 
@@ -366,7 +361,6 @@ _is_bl_device(lb_context* lb_ctx, const char* device_path)
 bool
 _is_ble_device(lb_context* lb_ctx, const char* device_path)
 {
-
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
@@ -377,6 +371,16 @@ _is_ble_device(lb_context* lb_ctx, const char* device_path)
         syslog(LOG_ERR, "%s: not a bl device", __FUNCTION__);
         return -LB_ERROR_INVALID_DEVICE;
     }
+
+    bl_device* device = NULL;
+    r = lb_get_device_by_device_path(lb_ctx, device_path, &device);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: Device %s not found\n", device_path);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (device->services_size > 0)
+        return true;
 
     objects = (const char**) calloc(MAX_OBJECTS, MAX_OBJECTS * sizeof(const char*));
     if (objects == NULL) {
@@ -726,12 +730,14 @@ lb_destroy()
 #endif
     int r;
 
-    pthread_kill(event_thread, SIGINT);
-    // r = sd_event_exit(event, 0);_
-    //    syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
-    //}
+    // pthread_kill(event_thread, SIGINT);
+    r = sd_event_exit(event, SIGINT);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
+    }
+    sd_event_unref(event);
 
-    // sd_event_unref(event);
+    pthread_cancel(event_thread);
     pthread_join(event_thread, NULL);
     pthread_mutex_destroy(&lock);
 
@@ -1359,5 +1365,89 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
     sleep(2);
 
     sd_bus_error_free(&error);
+    return LB_SUCCESS;
+}
+
+lb_result_t
+lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size)
+{
+    int r;
+
+    /* Parse the response message */
+    //"sa{sv}as"
+
+    r = sd_bus_message_skip(message, "s");
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
+        sd_bus_message_unref(message);
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_enter_container(message, 'a', "{sv}");
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_enter_container {sv} failed with error: %s",
+               __FUNCTION__, strerror(-r));
+        sd_bus_message_unref(message);
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+
+    while ((r = sd_bus_message_enter_container(message, 'e', "sv")) > 0) {
+        r = sd_bus_message_skip(message, "s");
+        if (r < 0) {
+            syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
+            sd_bus_message_unref(message);
+            return -LB_ERROR_UNSPECIFIED;
+        }
+
+        r = sd_bus_message_enter_container(message, 'v', "ay");
+        if (r < 0) {
+            syslog(LOG_ERR, "%s: sd_bus_message_enter_container v failed with error: %s",
+                   __FUNCTION__, strerror(-r));
+            sd_bus_message_unref(message);
+            return -LB_ERROR_UNSPECIFIED;
+        }
+
+
+        r = sd_bus_message_read_array(message, 'y', result, size);
+        if (r < 0) {
+            syslog(LOG_ERR, "%s: Failed to read byte array message with error: %s", __FUNCTION__,
+                   strerror(-r));
+            sd_bus_message_unref(message);
+            return -LB_ERROR_UNSPECIFIED;
+        }
+
+        r = sd_bus_message_exit_container(message);
+        if (r < 0) {
+            syslog(LOG_ERR, "%s: sd_bus_message_exit_container v failed with error: %s",
+                   __FUNCTION__, strerror(-r));
+            sd_bus_message_unref(message);
+            return -LB_ERROR_UNSPECIFIED;
+        }
+
+        r = sd_bus_message_exit_container(message);
+        if (r < 0) {
+            syslog(LOG_ERR, "%s: sd_bus_message_exit_container sv failed with error: %s",
+                   __FUNCTION__, strerror(-r));
+            sd_bus_message_unref(message);
+            return -LB_ERROR_UNSPECIFIED;
+        }
+    }
+
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_enter_container sv failed with error: %s", __FUNCTION__,
+               strerror(-r));
+        sd_bus_message_unref(message);
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_exit_container(message);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_exit_container {sv} failed with error: %s",
+               __FUNCTION__, strerror(-r));
+        sd_bus_message_unref(message);
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
     return LB_SUCCESS;
 }

@@ -306,6 +306,15 @@ lb_result_t lb_register_characteristic_read_event(lb_context* lb_ctx,
                                                   sd_bus_message_handler_t callback,
                                                   void* userdata);
 
+/**
+ * Special function to parse uart tx line buffer
+ *
+ * @param message sd_bus_message to prase the buffer array from
+ * @param result buffer to accommodate the result
+ * @param size of the buffer
+ * @return Result of operation
+ */
+lb_result_t lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size);
 #ifdef __cplusplus
 }
 #endif
