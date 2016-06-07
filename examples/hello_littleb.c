@@ -27,7 +27,22 @@
 static int
 test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
 {
-    printf("callback called\n");
+    int r, i;
+    size_t size;
+    uint8_t* result;
+
+    r = lb_parse_uart_service_message(message, (const void**) result, &size);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: couldn't parse uart message\n");
+        exit(r);
+    }
+
+    printf("message is:\n");
+    for (i = 0; i < size; i++) {
+        printf("%x ", result[i]);
+    }
+    printf("\n");
+
     return LB_SUCCESS;
 }
 
@@ -101,7 +116,7 @@ main(int argc, char* argv[])
     fflush(stdout);
     uint8_t led_on[] = { 0x91, 0x20, 0x00 };
     uint8_t led_off[] = { 0x91, 0x00, 0x00 };
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 1; i++) {
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
@@ -126,12 +141,20 @@ main(int argc, char* argv[])
         fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
     }
 
-    printf("get_version\n");
-    uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
-    r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
-    if (r < 0) {
-        fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
-    }
+    retry = 0;
+    do {
+        uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
+        r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
+        if (r < 0) {
+            fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
+            retry++;
+            if (retry == 10)
+                break;
+            sleep(1);
+            continue;
+        }
+        printf("get_version\n");
+    } while (r < 0);
 
     printf("waiting for callbacks\n");
     sleep(5);
