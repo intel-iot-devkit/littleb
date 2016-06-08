@@ -315,6 +315,7 @@ _is_string_in_device_introspection(lb_context* lb_ctx, const char* device_path, 
     sd_bus_message* reply = NULL;
 
     int r;
+    bool result = false;
     const char* introspect_xml;
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -343,10 +344,12 @@ _is_string_in_device_introspection(lb_context* lb_ctx, const char* device_path, 
         return false;
     }
 
+    result = (strstr(introspect_xml, str) != NULL) ? true : false;
+
     sd_bus_error_free(&error);
     sd_bus_message_unref(reply);
 
-    return (strstr(introspect_xml, str) != NULL) ? true : false;
+    return result;
 }
 
 bool
@@ -366,20 +369,20 @@ _is_ble_device(lb_context* lb_ctx, const char* device_path)
 #endif
     const char** objects;
     int i = 0, r = 0;
+    bool result = false;
 
     if (!_is_bl_device(lb_ctx, device_path)) {
         syslog(LOG_ERR, "%s: not a bl device", __FUNCTION__);
-        return -LB_ERROR_INVALID_DEVICE;
+        return false;
     }
 
     bl_device* device = NULL;
     r = lb_get_device_by_device_path(lb_ctx, device_path, &device);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device %s not found\n", device_path);
-        return -LB_ERROR_INVALID_DEVICE;
     }
 
-    if (device->services_size > 0)
+    if (device != NULL && device->services_size > 0)
         return true;
 
     objects = (const char**) calloc(MAX_OBJECTS, MAX_OBJECTS * sizeof(const char*));
@@ -389,24 +392,21 @@ _is_ble_device(lb_context* lb_ctx, const char* device_path)
     }
 
     r = _get_root_objects(lb_ctx, objects);
-
     if (r < 0) {
         syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
-        if (objects != NULL)
-            free(objects);
         return false;
     }
 
     while (objects[i] != NULL) {
         if ((strstr(objects[i], device_path) != NULL) && (strstr(objects[i], "service") != NULL)) {
-            free(objects);
-            return true;
+            result = true;
         }
+        free((char*) objects[i]);
         i++;
     }
-
     free(objects);
-    return false;
+
+    return result;
 }
 
 bool
@@ -509,7 +509,7 @@ _add_new_characteristic(lb_context* lb_ctx, ble_service* service, const char* ch
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    new_characteristic->char_path = characteristic_path;
+    new_characteristic->char_path = strdup(characteristic_path);
 
     const char* uuid = _get_characteristic_uuid(lb_ctx, characteristic_path);
     if (uuid == NULL) {
@@ -559,7 +559,7 @@ _add_new_service(lb_context* lb_ctx, bl_device* dev, const char* service_path)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    new_service->service_path = service_path;
+    new_service->service_path = strdup(service_path);
 
     const char* uuid = _get_service_uuid(lb_ctx, service_path);
     if (uuid == NULL) {
@@ -609,7 +609,8 @@ _add_new_device(lb_context* lb_ctx, const char* device_path)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    new_device->device_path = device_path;
+    new_device->device_path = strdup(device_path);
+
     const char* name = _get_device_name(lb_ctx, device_path);
     if (name == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find device name", __FUNCTION__);
@@ -700,10 +701,6 @@ _close_system_bus(lb_context* lb_ctx)
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     sd_bus_unref(lb_ctx->bus);
-    if (lb_ctx->devices) {
-        free(lb_ctx->devices);
-        lb_ctx->devices_size = 0;
-    }
     return LB_SUCCESS;
 }
 
@@ -728,18 +725,25 @@ lb_destroy()
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    int r;
+    int i, r;
 
-    // pthread_kill(event_thread, SIGINT);
+
+    pthread_cancel(event_thread);
+    pthread_join(event_thread, NULL);
+    pthread_mutex_destroy(&lock);
+
     r = sd_event_exit(event, SIGINT);
     if (r < 0) {
         syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
     }
     sd_event_unref(event);
 
-    pthread_cancel(event_thread);
-    pthread_join(event_thread, NULL);
-    pthread_mutex_destroy(&lock);
+    if (event_arr != NULL) {
+        for (i = 0; i < event_arr_size; i++) {
+            free(event_arr[i]);
+        }
+        free(event_arr);
+    }
 
     return LB_SUCCESS;
 }
@@ -790,14 +794,38 @@ lb_context_free(lb_context* lb_ctx)
         for (i = 0; i < lb_ctx->devices_size; i++) {
             for (j = 0; j < lb_ctx->devices[i]->services_size; j++) {
                 for (k = 0; k < lb_ctx->devices[i]->services[j]->characteristics_size; k++) {
-                    free(lb_ctx->devices[i]->services[j]->characteristics[k]);
+                    if (lb_ctx->devices[i]->services[j]->characteristics[k]->char_path != NULL)
+                        free((char*) lb_ctx->devices[i]->services[j]->characteristics[k]->char_path);
+                    if (lb_ctx->devices[i]->services[j]->characteristics[k]->uuid != NULL)
+                        free((char*) lb_ctx->devices[i]->services[j]->characteristics[k]->uuid);
+                    if (lb_ctx->devices[i]->services[j]->characteristics[k] != NULL)
+                        free(lb_ctx->devices[i]->services[j]->characteristics[k]);
                 }
-                free(lb_ctx->devices[i]->services[j]);
+                if (lb_ctx->devices[i]->services[j]->service_path != NULL)
+                    free((char*) lb_ctx->devices[i]->services[j]->service_path);
+                if (lb_ctx->devices[i]->services[j]->uuid != NULL)
+                    free((char*) lb_ctx->devices[i]->services[j]->uuid);
+                if (lb_ctx->devices[i]->services[j]->characteristics != NULL)
+                    free(lb_ctx->devices[i]->services[j]->characteristics);
+                if (lb_ctx->devices[i]->services[j] != NULL)
+                    free(lb_ctx->devices[i]->services[j]);
             }
-            free(lb_ctx->devices[i]);
+            if (lb_ctx->devices[i]->address != NULL)
+                free((char*) lb_ctx->devices[i]->address);
+            if (lb_ctx->devices[i]->device_path != NULL)
+                free((char*) lb_ctx->devices[i]->device_path);
+            if (lb_ctx->devices[i]->name != NULL)
+                free((char*) lb_ctx->devices[i]->name);
+            if (lb_ctx->devices[i]->services != NULL)
+                free(lb_ctx->devices[i]->services);
+            if (lb_ctx->devices[i] != NULL)
+                free(lb_ctx->devices[i]);
         }
+        if (lb_ctx->devices != NULL)
+            free(lb_ctx->devices);
         free(lb_ctx);
     }
+
     return LB_SUCCESS;
 }
 
@@ -822,24 +850,28 @@ lb_get_bl_devices(lb_context* lb_ctx, int seconds)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    _scan_devices(lb_ctx, seconds);
-
-    _get_root_objects(lb_ctx, objects);
-
+    r = _scan_devices(lb_ctx, seconds);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
-        //      free(objects);
-        return -1;
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = _get_root_objects(lb_ctx, objects);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
+        return -LB_ERROR_UNSPECIFIED;
     }
 
     while (objects[i] != NULL) {
         if (_is_bl_device(lb_ctx, objects[i])) {
             _add_new_device(lb_ctx, objects[i]);
         }
+        free((char*) objects[i]);
         i++;
     }
 
     free(objects);
+
     return LB_SUCCESS;
 }
 
@@ -1041,7 +1073,13 @@ lb_get_ble_device_services(lb_context* lb_ctx, bl_device* dev)
         i++;
     }
 
+    i = 0;
+    while (objects[i] != NULL) {
+        free((char*) objects[i]);
+        i++;
+    }
     free(objects);
+
     sd_bus_error_free(&error);
 
     return LB_SUCCESS;
@@ -1379,7 +1417,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
     r = sd_bus_message_skip(message, "s");
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
-        sd_bus_message_unref(message);
         return -LB_ERROR_UNSPECIFIED;
     }
 
@@ -1387,7 +1424,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_message_enter_container {sv} failed with error: %s",
                __FUNCTION__, strerror(-r));
-        sd_bus_message_unref(message);
         return -LB_ERROR_UNSPECIFIED;
     }
 
@@ -1396,7 +1432,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
         r = sd_bus_message_skip(message, "s");
         if (r < 0) {
             syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
-            sd_bus_message_unref(message);
             return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -1404,7 +1439,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
         if (r < 0) {
             syslog(LOG_ERR, "%s: sd_bus_message_enter_container v failed with error: %s",
                    __FUNCTION__, strerror(-r));
-            sd_bus_message_unref(message);
             return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -1413,7 +1447,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
         if (r < 0) {
             syslog(LOG_ERR, "%s: Failed to read byte array message with error: %s", __FUNCTION__,
                    strerror(-r));
-            sd_bus_message_unref(message);
             return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -1421,7 +1454,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
         if (r < 0) {
             syslog(LOG_ERR, "%s: sd_bus_message_exit_container v failed with error: %s",
                    __FUNCTION__, strerror(-r));
-            sd_bus_message_unref(message);
             return -LB_ERROR_UNSPECIFIED;
         }
 
@@ -1429,7 +1461,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
         if (r < 0) {
             syslog(LOG_ERR, "%s: sd_bus_message_exit_container sv failed with error: %s",
                    __FUNCTION__, strerror(-r));
-            sd_bus_message_unref(message);
             return -LB_ERROR_UNSPECIFIED;
         }
     }
@@ -1437,7 +1468,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_message_enter_container sv failed with error: %s", __FUNCTION__,
                strerror(-r));
-        sd_bus_message_unref(message);
         return -LB_ERROR_UNSPECIFIED;
     }
 
@@ -1445,7 +1475,6 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_message_exit_container {sv} failed with error: %s",
                __FUNCTION__, strerror(-r));
-        sd_bus_message_unref(message);
         return -LB_ERROR_UNSPECIFIED;
     }
 
