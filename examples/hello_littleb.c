@@ -31,8 +31,9 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     int r, i;
     size_t size = 0;
     uint8_t* result = NULL;
+    int* userdata_test = (int*)userdata;
 
-    printf("callback called\n");
+    printf("callback called it userdata: %d\n", *userdata_test);
 
     r = lb_parse_uart_service_message(message, (const void**) &result, &size);
     if (r < 0) {
@@ -60,7 +61,7 @@ main(int argc, char* argv[])
         exit(r);
     }
 
-    lb_context* lb_ctx = lb_context_new(&lb_ctx);
+    lb_context* lb_ctx = lb_context_new();
     if (lb_ctx == NULL) {
         fprintf(stderr, "ERROR: lb_context_new\n");
         exit(r);
@@ -134,8 +135,11 @@ main(int argc, char* argv[])
     }
     printf("\n");
 
+    int* userdata_test = malloc (sizeof(int));
+    *userdata_test = 100;
+
     r = lb_register_characteristic_read_event(lb_ctx, firmata,
-                                              "6e400003-b5a3-f393-e0a9-e50e24dcca9e", test_callback, NULL);
+                                              "6e400003-b5a3-f393-e0a9-e50e24dcca9e", test_callback, (void *)userdata_test);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
         goto cleanup;

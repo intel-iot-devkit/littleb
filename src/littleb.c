@@ -27,7 +27,7 @@
 static sd_event* event = NULL;
 static pthread_t event_thread;
 static pthread_mutex_t lock;
-static event_pair** event_arr = NULL;
+static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
 
 void*
@@ -50,7 +50,7 @@ _run_event_loop(void* arg)
     }
 
     for (i = 0; i < event_arr_size; i++) {
-        r = sd_bus_add_match(bus, NULL, event_arr[i]->event, *(event_arr[i]->callback), NULL);
+        r = sd_bus_add_match(bus, NULL, events_matches_array[i]->event, *(events_matches_array[i]->callback), events_matches_array[i]->userdata);
         if (r < 0) {
             syslog(LOG_ERR, "%s: Failed on sd_bus_add_match with error %d", __FUNCTION__, r);
             return NULL;
@@ -738,11 +738,11 @@ lb_destroy()
     }
     sd_event_unref(event);
 
-    if (event_arr != NULL) {
+    if (events_matches_array != NULL) {
         for (i = 0; i < event_arr_size; i++) {
-            free(event_arr[i]);
+            free(events_matches_array[i]);
         }
-        free(event_arr);
+        free(events_matches_array);
     }
 
     return LB_SUCCESS;
@@ -1373,30 +1373,31 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
     snprintf(match, 66, "path='%s'", ble_char_new->char_path);
 
     int current_index = event_arr_size;
-    if (event_arr_size == 0 || event_arr == NULL) {
-        event_arr = (event_pair**) malloc(sizeof(event_pair*));
-        if (event_arr == NULL) {
-            syslog(LOG_ERR, "%s: Error allocating memory for event_arr", __FUNCTION__);
+    if (event_arr_size == 0 || events_matches_array == NULL) {
+        events_matches_array = (event_matches_callbacks**) malloc(sizeof(event_matches_callbacks*));
+        if (events_matches_array == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for events_matches_array", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
         }
         event_arr_size++;
     } else {
         event_arr_size++;
-        event_arr = realloc(event_arr, event_arr_size * sizeof(event_pair*));
-        if (event_arr == NULL) {
-            syslog(LOG_ERR, "%s: Error reallocating memory for event_arr", __FUNCTION__);
+        events_matches_array = realloc(events_matches_array, event_arr_size * sizeof(event_matches_callbacks*));
+        if (events_matches_array == NULL) {
+            syslog(LOG_ERR, "%s: Error reallocating memory for events_matches_array", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
         }
     }
 
-    event_pair* new_event_pair = (event_pair*) malloc(sizeof(event_pair));
+    event_matches_callbacks* new_event_pair = (event_matches_callbacks*) malloc(sizeof(event_matches_callbacks));
     if (new_event_pair == NULL) {
-        syslog(LOG_ERR, "%s: Error reallocating memory for event_arr", __FUNCTION__);
+        syslog(LOG_ERR, "%s: Error reallocating memory for events_matches_array", __FUNCTION__);
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
     new_event_pair->event = match;
     new_event_pair->callback = &callback;
-    event_arr[current_index] = new_event_pair;
+    new_event_pair->userdata = userdata;
+    events_matches_array[current_index] = new_event_pair;
 
     pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
     // wait for thread to start
