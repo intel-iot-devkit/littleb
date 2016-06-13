@@ -33,9 +33,14 @@ static uint event_arr_size = 0;
 void*
 _run_event_loop(void* arg)
 {
-    int r;
-    int i;
-    sd_bus* bus = *((sd_bus**) arg);
+    int r, i;
+    sd_bus *bus = NULL;
+
+    r = sd_bus_open_system(&bus);
+    if(r < 0) {
+            fprintf(stderr, "%s: Failed to connect to system bus: %s", __FUNCTION__, strerror(-r));
+            return NULL;
+    }
 
     r = sd_event_default(&event);
     if (r < 0) {
