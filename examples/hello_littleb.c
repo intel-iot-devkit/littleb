@@ -31,9 +31,9 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     int r, i;
     size_t size = 0;
     uint8_t* result = NULL;
-    int* userdata_test = (int*) userdata;
+    const char* userdata_test = (const char*) userdata;
 
-    printf("callback called it userdata: %d\n", *userdata_test);
+    printf("callback called with userdata: %s\n", userdata_test);
 
     r = lb_parse_uart_service_message(message, (const void**) &result, &size);
     if (r < 0) {
@@ -124,19 +124,18 @@ main(int argc, char* argv[])
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        sleep(0.5);
+        usleep(1000000);
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        sleep(0.5);
+        usleep(1000000);
     }
     printf("\n");
 
-    int* userdata_test = malloc(sizeof(int));
-    *userdata_test = 100;
+    const char* userdata_test = "test";
 
     r =
     lb_register_characteristic_read_event(lb_ctx, firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
