@@ -85,7 +85,6 @@ _convert_device_path_to_address(const char* address)
     const char* start_of_address = strstr(address, prefix) + strlen(prefix) * sizeof(char);
 
     char* new_address = strdup(start_of_address);
-
     if (new_address == NULL) {
         syslog(LOG_ERR, "%s: Error copying address to new_addresss", __FUNCTION__);
         return NULL;
@@ -516,11 +515,21 @@ _add_new_characteristic(lb_context* lb_ctx, ble_service* service, const char* ch
     }
 
     new_characteristic->char_path = strdup(characteristic_path);
+    if (new_characteristic->char_path == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for new characteristic", __FUNCTION__);
+        service->characteristics_size--;
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
 
     const char* uuid = _get_characteristic_uuid(lb_ctx, characteristic_path);
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find characteristic uuid", __FUNCTION__);
-        new_characteristic->uuid = "null";
+        new_characteristic->uuid = strdup("null");
+        if (new_characteristic->uuid == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for new characteristic uuid", __FUNCTION__);
+            service->characteristics_size--;
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
     } else {
         new_characteristic->uuid = uuid;
     }
@@ -566,6 +575,10 @@ _add_new_service(lb_context* lb_ctx, bl_device* dev, const char* service_path)
     }
 
     new_service->service_path = strdup(service_path);
+    if (new_service->service_path == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for new service", __FUNCTION__);
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
 
     const char* uuid = _get_service_uuid(lb_ctx, service_path);
     if (uuid == NULL) {
@@ -616,6 +629,11 @@ _add_new_device(lb_context* lb_ctx, const char* device_path)
     }
 
     new_device->device_path = strdup(device_path);
+    if (new_device->device_path == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for new_device", __FUNCTION__);
+        lb_ctx->devices_size--;
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
 
     const char* name = _get_device_name(lb_ctx, device_path);
     if (name == NULL) {
@@ -792,7 +810,7 @@ lb_context_free(lb_context* lb_ctx)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     r = _close_system_bus(lb_ctx);
@@ -851,7 +869,7 @@ lb_get_bl_devices(lb_context* lb_ctx, int seconds)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (lb_ctx->devices != NULL) {
@@ -900,12 +918,12 @@ lb_connect_device(lb_context* lb_ctx, bl_device* dev)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -941,12 +959,12 @@ lb_disconnect_device(lb_context* lb_ctx, bl_device* dev)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -982,12 +1000,12 @@ lb_pair_device(lb_context* lb_ctx, bl_device* dev)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -1022,12 +1040,12 @@ lb_unpair_device(lb_context* lb_ctx, bl_device* dev)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -1064,12 +1082,12 @@ lb_get_ble_device_services(lb_context* lb_ctx, bl_device* dev)
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bl_device(lb_ctx, dev->device_path)) {
@@ -1162,17 +1180,17 @@ lb_get_ble_characteristic_by_characteristic_path(lb_context* lb_ctx,
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (characteristic_path == NULL) {
         syslog(LOG_ERR, "%s: characteristic_path is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     for (i = 0; i < dev->services_size; i++) {
@@ -1197,17 +1215,17 @@ lb_get_ble_characteristic_by_uuid(lb_context* lb_ctx, bl_device* dev, const char
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_ble_device(lb_ctx, dev->device_path)) {
@@ -1236,17 +1254,17 @@ lb_get_ble_service_by_service_path(lb_context* lb_ctx, bl_device* dev, const cha
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (service_path == NULL) {
         syslog(LOG_ERR, "%s: service_path is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     for (i = 0; i < dev->services_size; i++) {
@@ -1268,17 +1286,17 @@ lb_get_ble_service_by_uuid(lb_context* lb_ctx, bl_device* dev, const char* uuid,
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_ble_device(lb_ctx, dev->device_path)) {
@@ -1305,12 +1323,12 @@ lb_get_device_by_device_path(lb_context* lb_ctx, const char* device_path, bl_dev
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (device_path == NULL) {
         syslog(LOG_ERR, "%s: device_path is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     for (i = 0; i < lb_ctx->devices_size; i++) {
@@ -1332,12 +1350,12 @@ lb_get_device_by_device_name(lb_context* lb_ctx, const char* name, bl_device** b
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (name == NULL) {
         syslog(LOG_ERR, "%s: name is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     for (i = 0; i < lb_ctx->devices_size; i++) {
@@ -1359,12 +1377,12 @@ lb_get_device_by_device_address(lb_context* lb_ctx, const char* address, bl_devi
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (address == NULL) {
         syslog(LOG_ERR, "%s: address is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     for (i = 0; i < lb_ctx->devices_size; i++) {
@@ -1389,17 +1407,17 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -1469,17 +1487,17 @@ lb_read_from_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (!_is_bus_connected(lb_ctx)) {
@@ -1543,22 +1561,22 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     if (dev == NULL) {
         syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     if (callback == NULL) {
         syslog(LOG_ERR, "%s: callback is null", __FUNCTION__);
-        return LB_ERROR_INVALID_DEVICE;
+        return -LB_ERROR_INVALID_DEVICE;
     }
 
     r = lb_get_ble_characteristic_by_uuid(lb_ctx, dev, uuid, &ble_char_new);
@@ -1628,7 +1646,7 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
 
     if (message == NULL) {
         syslog(LOG_ERR, "%s: message is null", __FUNCTION__);
-        return LB_ERROR_INVALID_CONTEXT;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
     r = sd_bus_message_skip(message, "s");
