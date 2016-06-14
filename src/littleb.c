@@ -34,12 +34,12 @@ void*
 _run_event_loop(void* arg)
 {
     int r, i;
-    sd_bus *bus = NULL;
+    sd_bus* bus = NULL;
 
     r = sd_bus_open_system(&bus);
-    if(r < 0) {
-            fprintf(stderr, "%s: Failed to connect to system bus: %s", __FUNCTION__, strerror(-r));
-            return NULL;
+    if (r < 0) {
+        fprintf(stderr, "%s: Failed to connect to system bus: %s", __FUNCTION__, strerror(-r));
+        return NULL;
     }
 
     r = sd_event_default(&event);
@@ -55,7 +55,8 @@ _run_event_loop(void* arg)
     }
 
     for (i = 0; i < event_arr_size; i++) {
-        r = sd_bus_add_match(bus, NULL, events_matches_array[i]->event, *(events_matches_array[i]->callback), events_matches_array[i]->userdata);
+        r = sd_bus_add_match(bus, NULL, events_matches_array[i]->event,
+                             *(events_matches_array[i]->callback), events_matches_array[i]->userdata);
         if (r < 0) {
             syslog(LOG_ERR, "%s: Failed on sd_bus_add_match with error %d", __FUNCTION__, r);
             return NULL;
@@ -84,7 +85,6 @@ _convert_device_path_to_address(const char* address)
     const char* start_of_address = strstr(address, prefix) + strlen(prefix) * sizeof(char);
 
     char* new_address = strdup(start_of_address);
-
     if (new_address == NULL) {
         syslog(LOG_ERR, "%s: Error copying address to new_addresss", __FUNCTION__);
         return NULL;
@@ -515,11 +515,21 @@ _add_new_characteristic(lb_context* lb_ctx, ble_service* service, const char* ch
     }
 
     new_characteristic->char_path = strdup(characteristic_path);
+    if (new_characteristic->char_path == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for new characteristic", __FUNCTION__);
+        service->characteristics_size--;
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
 
     const char* uuid = _get_characteristic_uuid(lb_ctx, characteristic_path);
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find characteristic uuid", __FUNCTION__);
-        new_characteristic->uuid = "null";
+        new_characteristic->uuid = strdup("null");
+        if (new_characteristic->uuid == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for new characteristic uuid", __FUNCTION__);
+            service->characteristics_size--;
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
     } else {
         new_characteristic->uuid = uuid;
     }
@@ -565,6 +575,10 @@ _add_new_service(lb_context* lb_ctx, bl_device* dev, const char* service_path)
     }
 
     new_service->service_path = strdup(service_path);
+    if (new_service->service_path == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for new service", __FUNCTION__);
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
 
     const char* uuid = _get_service_uuid(lb_ctx, service_path);
     if (uuid == NULL) {
@@ -615,6 +629,11 @@ _add_new_device(lb_context* lb_ctx, const char* device_path)
     }
 
     new_device->device_path = strdup(device_path);
+    if (new_device->device_path == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for new_device", __FUNCTION__);
+        lb_ctx->devices_size--;
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
 
     const char* name = _get_device_name(lb_ctx, device_path);
     if (name == NULL) {
@@ -705,6 +724,7 @@ _close_system_bus(lb_context* lb_ctx)
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
+
     sd_bus_unref(lb_ctx->bus);
     return LB_SUCCESS;
 }
@@ -731,7 +751,6 @@ lb_destroy()
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i, r;
-
 
     pthread_cancel(event_thread);
     pthread_join(event_thread, NULL);
@@ -788,48 +807,51 @@ lb_context_free(lb_context* lb_ctx)
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int r = 0, i = 0, j = 0, k = 0;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
     r = _close_system_bus(lb_ctx);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to close system bus: %s", __FUNCTION__, strerror(-r));
         return -LB_ERROR_UNSPECIFIED;
     }
 
-    if (lb_ctx != NULL) {
-        int i = 0;
-        for (i = 0; i < lb_ctx->devices_size; i++) {
-            for (j = 0; j < lb_ctx->devices[i]->services_size; j++) {
-                for (k = 0; k < lb_ctx->devices[i]->services[j]->characteristics_size; k++) {
-                    if (lb_ctx->devices[i]->services[j]->characteristics[k]->char_path != NULL)
-                        free((char*) lb_ctx->devices[i]->services[j]->characteristics[k]->char_path);
-                    if (lb_ctx->devices[i]->services[j]->characteristics[k]->uuid != NULL)
-                        free((char*) lb_ctx->devices[i]->services[j]->characteristics[k]->uuid);
-                    if (lb_ctx->devices[i]->services[j]->characteristics[k] != NULL)
-                        free(lb_ctx->devices[i]->services[j]->characteristics[k]);
-                }
-                if (lb_ctx->devices[i]->services[j]->service_path != NULL)
-                    free((char*) lb_ctx->devices[i]->services[j]->service_path);
-                if (lb_ctx->devices[i]->services[j]->uuid != NULL)
-                    free((char*) lb_ctx->devices[i]->services[j]->uuid);
-                if (lb_ctx->devices[i]->services[j]->characteristics != NULL)
-                    free(lb_ctx->devices[i]->services[j]->characteristics);
-                if (lb_ctx->devices[i]->services[j] != NULL)
-                    free(lb_ctx->devices[i]->services[j]);
+    for (i = 0; i < lb_ctx->devices_size; i++) {
+        for (j = 0; j < lb_ctx->devices[i]->services_size; j++) {
+            for (k = 0; k < lb_ctx->devices[i]->services[j]->characteristics_size; k++) {
+                if (lb_ctx->devices[i]->services[j]->characteristics[k]->char_path != NULL)
+                    free((char*) lb_ctx->devices[i]->services[j]->characteristics[k]->char_path);
+                if (lb_ctx->devices[i]->services[j]->characteristics[k]->uuid != NULL)
+                    free((char*) lb_ctx->devices[i]->services[j]->characteristics[k]->uuid);
+                if (lb_ctx->devices[i]->services[j]->characteristics[k] != NULL)
+                    free(lb_ctx->devices[i]->services[j]->characteristics[k]);
             }
-            if (lb_ctx->devices[i]->address != NULL)
-                free((char*) lb_ctx->devices[i]->address);
-            if (lb_ctx->devices[i]->device_path != NULL)
-                free((char*) lb_ctx->devices[i]->device_path);
-            if (lb_ctx->devices[i]->name != NULL)
-                free((char*) lb_ctx->devices[i]->name);
-            if (lb_ctx->devices[i]->services != NULL)
-                free(lb_ctx->devices[i]->services);
-            if (lb_ctx->devices[i] != NULL)
-                free(lb_ctx->devices[i]);
+            if (lb_ctx->devices[i]->services[j]->service_path != NULL)
+                free((char*) lb_ctx->devices[i]->services[j]->service_path);
+            if (lb_ctx->devices[i]->services[j]->uuid != NULL)
+                free((char*) lb_ctx->devices[i]->services[j]->uuid);
+            if (lb_ctx->devices[i]->services[j]->characteristics != NULL)
+                free(lb_ctx->devices[i]->services[j]->characteristics);
+            if (lb_ctx->devices[i]->services[j] != NULL)
+                free(lb_ctx->devices[i]->services[j]);
         }
-        if (lb_ctx->devices != NULL)
-            free(lb_ctx->devices);
-        free(lb_ctx);
+        if (lb_ctx->devices[i]->address != NULL)
+            free((char*) lb_ctx->devices[i]->address);
+        if (lb_ctx->devices[i]->device_path != NULL)
+            free((char*) lb_ctx->devices[i]->device_path);
+        if (lb_ctx->devices[i]->name != NULL)
+            free((char*) lb_ctx->devices[i]->name);
+        if (lb_ctx->devices[i]->services != NULL)
+            free(lb_ctx->devices[i]->services);
+        if (lb_ctx->devices[i] != NULL)
+            free(lb_ctx->devices[i]);
     }
+    if (lb_ctx->devices != NULL)
+        free(lb_ctx->devices);
+    free(lb_ctx);
 
     return LB_SUCCESS;
 }
@@ -844,6 +866,11 @@ lb_get_bl_devices(lb_context* lb_ctx, int seconds)
     const char* point;
     int i = 0, r = 0;
     sd_bus_error error = SD_BUS_ERROR_NULL;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
 
     if (lb_ctx->devices != NULL) {
         free(lb_ctx->devices);
@@ -889,6 +916,16 @@ lb_connect_device(lb_context* lb_ctx, bl_device* dev)
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
 
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     if (!_is_bus_connected(lb_ctx)) {
         syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
         sd_bus_error_free(&error);
@@ -919,6 +956,16 @@ lb_disconnect_device(lb_context* lb_ctx, bl_device* dev)
 #endif
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
 
     if (!_is_bus_connected(lb_ctx)) {
         syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
@@ -951,6 +998,16 @@ lb_pair_device(lb_context* lb_ctx, bl_device* dev)
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
 
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     if (!_is_bus_connected(lb_ctx)) {
         syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
         sd_bus_error_free(&error);
@@ -980,6 +1037,16 @@ lb_unpair_device(lb_context* lb_ctx, bl_device* dev)
 #endif
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
 
     if (!_is_bus_connected(lb_ctx)) {
         syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
@@ -1012,6 +1079,16 @@ lb_get_ble_device_services(lb_context* lb_ctx, bl_device* dev)
     const char* point;
     int i = 0, r = 0;
     sd_bus_error error = SD_BUS_ERROR_NULL;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
 
     if (!_is_bl_device(lb_ctx, dev->device_path)) {
         syslog(LOG_ERR, "%s: device %s not a bl device", __FUNCTION__, dev->device_path);
@@ -1100,6 +1177,22 @@ lb_get_ble_characteristic_by_characteristic_path(lb_context* lb_ctx,
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i, j;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (characteristic_path == NULL) {
+        syslog(LOG_ERR, "%s: characteristic_path is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     for (i = 0; i < dev->services_size; i++) {
         for (j = 0; dev->services[i]->characteristics_size; j++) {
             if (strncmp(characteristic_path, dev->services[i]->characteristics[j]->char_path,
@@ -1119,6 +1212,21 @@ lb_get_ble_characteristic_by_uuid(lb_context* lb_ctx, bl_device* dev, const char
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i, j;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (uuid == NULL) {
+        syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
 
     if (!_is_ble_device(lb_ctx, dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
@@ -1143,6 +1251,22 @@ lb_get_ble_service_by_service_path(lb_context* lb_ctx, bl_device* dev, const cha
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (service_path == NULL) {
+        syslog(LOG_ERR, "%s: service_path is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     for (i = 0; i < dev->services_size; i++) {
         if (strncmp(service_path, dev->services[i]->service_path, strlen(service_path)) == 0) {
             *ble_service_ret = dev->services[i];
@@ -1159,6 +1283,21 @@ lb_get_ble_service_by_uuid(lb_context* lb_ctx, bl_device* dev, const char* uuid,
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (uuid == NULL) {
+        syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
 
     if (!_is_ble_device(lb_ctx, dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
@@ -1181,6 +1320,17 @@ lb_get_device_by_device_path(lb_context* lb_ctx, const char* device_path, bl_dev
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (device_path == NULL) {
+        syslog(LOG_ERR, "%s: device_path is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     for (i = 0; i < lb_ctx->devices_size; i++) {
         if (strncmp(device_path, lb_ctx->devices[i]->device_path, strlen(device_path)) == 0) {
             *bl_device_ret = lb_ctx->devices[i];
@@ -1197,6 +1347,17 @@ lb_get_device_by_device_name(lb_context* lb_ctx, const char* name, bl_device** b
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (name == NULL) {
+        syslog(LOG_ERR, "%s: name is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     for (i = 0; i < lb_ctx->devices_size; i++) {
         if (strncmp(name, lb_ctx->devices[i]->name, strlen(name)) == 0) {
             *bl_device_ret = lb_ctx->devices[i];
@@ -1213,6 +1374,17 @@ lb_get_device_by_device_address(lb_context* lb_ctx, const char* address, bl_devi
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int i;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (address == NULL) {
+        syslog(LOG_ERR, "%s: address is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     for (i = 0; i < lb_ctx->devices_size; i++) {
         if (strncmp(address, lb_ctx->devices[i]->address, strlen(address)) == 0) {
             *bl_device_ret = lb_ctx->devices[i];
@@ -1232,6 +1404,21 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
     sd_bus_message* func_call = NULL;
     sd_bus_error error = SD_BUS_ERROR_NULL;
     ble_char* characteristics = NULL;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (uuid == NULL) {
+        syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
 
     if (!_is_bus_connected(lb_ctx)) {
         syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
@@ -1298,6 +1485,21 @@ lb_read_from_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid
     sd_bus_error error = SD_BUS_ERROR_NULL;
     ble_char* characteristics = NULL;
 
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (uuid == NULL) {
+        syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     if (!_is_bus_connected(lb_ctx)) {
         syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
         sd_bus_error_free(&error);
@@ -1357,6 +1559,26 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
     ble_char* ble_char_new = NULL;
     char match[65];
 
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (uuid == NULL) {
+        syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (callback == NULL) {
+        syslog(LOG_ERR, "%s: callback is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
     r = lb_get_ble_characteristic_by_uuid(lb_ctx, dev, uuid, &ble_char_new);
     if (r < 0) {
         syslog(LOG_ERR, "%s: could find characteristic: %s", __FUNCTION__, uuid);
@@ -1387,14 +1609,16 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
         event_arr_size++;
     } else {
         event_arr_size++;
-        events_matches_array = realloc(events_matches_array, event_arr_size * sizeof(event_matches_callbacks*));
+        events_matches_array =
+        realloc(events_matches_array, event_arr_size * sizeof(event_matches_callbacks*));
         if (events_matches_array == NULL) {
             syslog(LOG_ERR, "%s: Error reallocating memory for events_matches_array", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
         }
     }
 
-    event_matches_callbacks* new_event_pair = (event_matches_callbacks*) malloc(sizeof(event_matches_callbacks));
+    event_matches_callbacks* new_event_pair =
+    (event_matches_callbacks*) malloc(sizeof(event_matches_callbacks));
     if (new_event_pair == NULL) {
         syslog(LOG_ERR, "%s: Error reallocating memory for events_matches_array", __FUNCTION__);
         return -LB_ERROR_MEMEORY_ALLOCATION;
@@ -1415,10 +1639,15 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
 lb_result_t
 lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size)
 {
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
     int r;
 
-    /* Parse the response message */
-    //"sa{sv}as"
+    if (message == NULL) {
+        syslog(LOG_ERR, "%s: message is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
 
     r = sd_bus_message_skip(message, "s");
     if (r < 0) {
