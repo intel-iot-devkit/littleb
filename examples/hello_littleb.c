@@ -31,7 +31,7 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     int r, i;
     size_t size = 0;
     uint8_t* result = NULL;
-    int* userdata_test = (int*)userdata;
+    int* userdata_test = (int*) userdata;
 
     printf("callback called it userdata: %d\n", *userdata_test);
 
@@ -117,29 +117,30 @@ main(int argc, char* argv[])
     fflush(stdout);
     uint8_t led_on[] = { 0x91, 0x20, 0x00 };
     uint8_t led_off[] = { 0x91, 0x00, 0x00 };
-    for (i = 0; i < 1; i++) {
+    for (i = 0; i < 10; i++) {
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        sleep(1);
+        sleep(0.5);
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        sleep(1);
+        sleep(0.5);
     }
     printf("\n");
 
-    int* userdata_test = malloc (sizeof(int));
+    int* userdata_test = malloc(sizeof(int));
     *userdata_test = 100;
 
-    r = lb_register_characteristic_read_event(lb_ctx, firmata,
-                                              "6e400003-b5a3-f393-e0a9-e50e24dcca9e", test_callback, (void *)userdata_test);
+    r =
+    lb_register_characteristic_read_event(lb_ctx, firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+                                          test_callback, (void*) userdata_test);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
         goto cleanup;

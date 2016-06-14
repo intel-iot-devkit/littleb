@@ -50,11 +50,12 @@ typedef enum {
     LB_SUCCESS = 0,                       /**< Expected response */
     LB_ERROR_FEATURE_NOT_IMPLEMENTED = 1, /**< Feature TODO */
     LB_ERROR_FEATURE_NOT_SUPPORTED = 2,   /**< Feature not supported by HW */
-    LB_ERROR_INVALID_DEVICE = 3,          /**< Not a BL or BLE device */
-    LB_ERROR_INVALID_BUS = 4,             /**< sd bus invalid */
-    LB_ERROR_NO_RESOURCES = 5,            /**< No resource of that type avail */
-    LB_ERROR_MEMEORY_ALLOCATION = 6,      /**< Memory allocation fail */
-    LB_ERROR_SD_BUS_CALL_FAIL = 7,        /**< sd_bus call failure */
+    LB_ERROR_INVALID_CONTEXT = 3,         /**< Not a littleb context*/
+    LB_ERROR_INVALID_DEVICE = 4,          /**< Not a BL or BLE device */
+    LB_ERROR_INVALID_BUS = 5,             /**< sd bus invalid */
+    LB_ERROR_NO_RESOURCES = 6,            /**< No resource of that type avail */
+    LB_ERROR_MEMEORY_ALLOCATION = 7,      /**< Memory allocation fail */
+    LB_ERROR_SD_BUS_CALL_FAIL = 8,        /**< sd_bus call failure */
 
     LB_ERROR_UNSPECIFIED = 99 /**< Unknown Error */
 } lb_result_t;
