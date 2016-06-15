@@ -26,7 +26,6 @@
 
 static sd_event* event = NULL;
 static pthread_t event_thread;
-static pthread_mutex_t lock;
 static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
 
@@ -129,10 +128,8 @@ _get_root_objects(lb_context* lb_ctx, const char** objects)
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/", "org.freedesktop.DBus.ObjectManager",
                            "GetManagedObjects", &error, &reply, NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method GetManagedObjects failed with error: %s",
                __FUNCTION__, error.message);
@@ -220,9 +217,7 @@ _get_device_name(lb_context* lb_ctx, const char* device_path)
     int r;
     char* name;
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Name", &error, &name);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_get_property_string Name on device %s failed with error: %s",
                __FUNCTION__, device_path, error.message);
@@ -244,10 +239,8 @@ _get_device_address(lb_context* lb_ctx, const char* device_path)
     int r;
     char* address;
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Address",
                                    &error, &address);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_get_property_string Address on device %s failed with error: %s",
                __FUNCTION__, device_path, error.message);
@@ -269,10 +262,8 @@ _get_service_uuid(lb_context* lb_ctx, const char* service_path)
     int r;
     char* name;
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, service_path, "org.bluez.GattService1",
                                    "UUID", &error, &name);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_get_property_string UUID on service %s failed with error: %s",
                __FUNCTION__, service_path, error.message);
@@ -294,10 +285,8 @@ _get_characteristic_uuid(lb_context* lb_ctx, const char* characteristic_path)
     int r;
     char* name;
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_get_property_string(lb_ctx->bus, BLUEZ_DEST, characteristic_path,
                                    BLUEZ_GATT_CHARACTERISTICS, "UUID", &error, &name);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR,
                "%s: sd_bus_get_property_string UUID on characteristic: %s failed with error: %s",
@@ -329,10 +318,8 @@ _is_string_in_device_introspection(lb_context* lb_ctx, const char* device_path, 
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, device_path,
                            "org.freedesktop.DBus.Introspectable", "Introspect", &error, &reply, NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method Introspect on device %s failed with error: %s",
                __FUNCTION__, device_path, error.message);
@@ -442,7 +429,6 @@ _is_service_primary(lb_context* lb_ctx, const char* service_path)
     int r;
     bool primary;
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, service_path, "org.bluez.GattService1",
                                     "Primary", &error, 'b', &primary);
     if (r < 0) {
@@ -452,7 +438,6 @@ _is_service_primary(lb_context* lb_ctx, const char* service_path)
         sd_bus_error_free(&error);
         return NULL;
     }
-    pthread_mutex_unlock(&lock);
 
     sd_bus_error_free(&error);
     return primary;
@@ -468,7 +453,6 @@ _is_device_paired(lb_context* lb_ctx, const char* device_path)
     int r;
     bool paired;
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Paired",
                                     &error, 'b', &paired);
     if (r < 0) {
@@ -477,7 +461,6 @@ _is_device_paired(lb_context* lb_ctx, const char* device_path)
         sd_bus_error_free(&error);
         return NULL;
     }
-    pthread_mutex_unlock(&lock);
 
     sd_bus_error_free(&error);
     return paired;
@@ -685,10 +668,8 @@ _scan_devices(lb_context* lb_ctx, int seconds)
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1",
                            "StartDiscovery", &error, NULL, NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method StartDiscovery failed with error: %s", __FUNCTION__,
                error.message);
@@ -698,10 +679,8 @@ _scan_devices(lb_context* lb_ctx, int seconds)
 
     sleep(seconds);
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1",
                            "StopDiscovery", &error, NULL, NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method StopDiscovery failed with error: %s", __FUNCTION__, error.message);
         sd_bus_error_free(&error);
@@ -748,10 +727,6 @@ lb_init()
 #endif
     int r;
 
-    if (pthread_mutex_init(&lock, NULL) != 0) {
-        syslog(LOG_ERR, "%s: mutex init failed", __FUNCTION__);
-        return -LB_ERROR_UNSPECIFIED;
-    }
     return LB_SUCCESS;
 }
 
@@ -765,7 +740,6 @@ lb_destroy()
 
     pthread_cancel(event_thread);
     pthread_join(event_thread, NULL);
-    pthread_mutex_destroy(&lock);
 
     r = sd_event_exit(event, SIGINT);
     if (r < 0) {
@@ -943,11 +917,9 @@ lb_connect_device(lb_context* lb_ctx, bl_device* dev)
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, dev->device_path, BLUEZ_DEVICE, "Connect",
                            &error, NULL, NULL);
 
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method Connect on device %s failed with error: %s",
                __FUNCTION__, dev->device_path, error.message);
@@ -984,11 +956,9 @@ lb_disconnect_device(lb_context* lb_ctx, bl_device* dev)
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, dev->device_path, BLUEZ_DEVICE, "Disconnect",
                            &error, NULL, NULL);
 
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method Disconnect on device: %s failed with error: %s",
                __FUNCTION__, dev->device_path, error.message);
@@ -1025,10 +995,8 @@ lb_pair_device(lb_context* lb_ctx, bl_device* dev)
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, dev->device_path, BLUEZ_DEVICE, "Pair", &error, NULL, NULL);
 
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method Pair on device %s failed with error: %s",
                __FUNCTION__, dev->device_path, error.message);
@@ -1065,11 +1033,9 @@ lb_unpair_device(lb_context* lb_ctx, bl_device* dev)
         return -LB_ERROR_INVALID_BUS;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, dev->device_path, BLUEZ_DEVICE, "CancelPairing",
                            &error, NULL, NULL);
 
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method CancelPairing on device %s failed with error: %s",
                __FUNCTION__, dev->device_path, error.message);
@@ -1469,7 +1435,6 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
         return -LB_ERROR_UNSPECIFIED;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call(lb_ctx->bus, func_call, 0, &error, NULL);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call WriteValue on device %s failed with error: %s",
@@ -1485,7 +1450,6 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
         sd_bus_message_unref(func_call);
         return -LB_ERROR_SD_BUS_CALL_FAIL;
     }
-    pthread_mutex_unlock(&lock);
 
     sd_bus_error_free(&error);
     sd_bus_message_unref(func_call);
@@ -1537,10 +1501,8 @@ lb_read_from_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid
         return -LB_ERROR_UNSPECIFIED;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, characteristics->char_path,
                            BLUEZ_GATT_CHARACTERISTICS, "ReadValue", &error, &reply, "a{sv}", NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method ReadValue on device %s failed with error: %s",
                __FUNCTION__, characteristics->char_path, error.message);
@@ -1604,10 +1566,8 @@ lb_register_characteristic_read_event(lb_context* lb_ctx,
         return -LB_ERROR_UNSPECIFIED;
     }
 
-    pthread_mutex_lock(&lock);
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, ble_char_new->char_path,
                            BLUEZ_GATT_CHARACTERISTICS, "StartNotify", &error, NULL, NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call_method StartNotify on device %s failed with error: %s",
                __FUNCTION__, ble_char_new->char_path, error.message);
