@@ -22,7 +22,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "../include/littleb.h"
+#include <stdio.h>
+#include "littleb.h"
 
 static int
 test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
@@ -38,7 +39,7 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     r = lb_parse_uart_service_message(message, (const void**) &result, &size);
     if (r < 0) {
         fprintf(stderr, "ERROR: couldn't parse uart message\n");
-        return LB_ERROR_UNSPECIFIED;
+        return -1;
     }
 
     printf("message is:\n");
@@ -47,7 +48,7 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     }
     printf("\n");
 
-    return LB_SUCCESS;
+    return 0;
 }
 
 int

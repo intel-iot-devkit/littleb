@@ -1,6 +1,6 @@
 /*
  * Author: Shiran Ben-Melech <shiran.ben-melech@intel.com>
- * Copyright © 2016 Intel Corporation
+ * Copyright (c) 2016 Intel Corporation.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -21,6 +21,42 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <syslog.h>
+#include <pthread.h>
+#include <systemd/sd-bus.h>
+
+#include "littleb.h"
+
+#define MAX_LEN 256
+#define MAX_OBJECTS 256
+
+static const char* BLUEZ_DEST = "org.bluez";
+static const char* BLUEZ_DEVICE = "org.bluez.Device1";
+static const char* BLUEZ_GATT_SERVICE = "org.bluez.GattService1";
+static const char* BLUEZ_GATT_CHARACTERISTICS = "org.bluez.GattCharacteristic1";
+
+struct bl_context {
+    sd_bus* bus;         /**< system bus to be used */
+    bl_device** devices; /**< list of the devices found in a scan */
+    int devices_size;    /**< count of devices found*/
+};
+
+typedef struct event_matches_callbacks {
+    const char* event;
+    sd_bus_message_handler_t* callback;
+    void* userdata;
+} event_matches_callbacks;
+
+#ifdef __cplusplus
+}
+#endif
