@@ -583,7 +583,12 @@ _add_new_service(lb_context* lb_ctx, bl_device* dev, const char* service_path)
     const char* uuid = _get_service_uuid(lb_ctx, service_path);
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find service uuid", __FUNCTION__);
-        new_service->uuid = "null";
+        new_service->uuid = strdup("null");
+        if (new_service->uuid == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for new service uuid", __FUNCTION__);
+            dev->services_size--;
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
     } else {
         new_service->uuid = uuid;
     }
@@ -638,7 +643,13 @@ _add_new_device(lb_context* lb_ctx, const char* device_path)
     const char* name = _get_device_name(lb_ctx, device_path);
     if (name == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find device name", __FUNCTION__);
-        new_device->name = "null";
+        new_device->name = strdup("null");
+        if (new_device->name == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for new device", __FUNCTION__);
+            lb_ctx->devices_size--;
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
+
     } else {
         new_device->name = name;
     }
