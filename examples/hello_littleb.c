@@ -62,7 +62,7 @@ main(int argc, char* argv[])
         exit(r);
     }
 
-    lb_context* lb_ctx = lb_context_new();
+    lb_context lb_ctx = lb_context_new();
     if (lb_ctx == NULL) {
         fprintf(stderr, "ERROR: lb_context_new\n");
         exit(r);
@@ -73,12 +73,9 @@ main(int argc, char* argv[])
         fprintf(stderr, "ERROR: lb_get_bl_devices\n");
         goto cleanup;
     }
-    for (i = 0; i < lb_ctx->devices_size; i++) {
-        printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
-    }
 
     // search for our specific device named "FIRMATA"
-    bl_device* firmata = NULL;
+    lb_bl_device* firmata = NULL;
     r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device FIRMATA not found\n");

@@ -27,14 +27,6 @@
 extern "C" {
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <syslog.h>
-#include <pthread.h>
-#include <systemd/sd-bus.h>
-
 #include "littleb.h"
 
 #define MAX_LEN 256
@@ -47,7 +39,7 @@ static const char* BLUEZ_GATT_CHARACTERISTICS = "org.bluez.GattCharacteristic1";
 
 struct bl_context {
     sd_bus* bus;         /**< system bus to be used */
-    bl_device** devices; /**< list of the devices found in a scan */
+    lb_bl_device** devices; /**< list of the devices found in a scan */
     int devices_size;    /**< count of devices found*/
 };
 

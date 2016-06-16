@@ -23,8 +23,14 @@
 
 #pragma once
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <unistd.h>
+#include <syslog.h>
+#include <pthread.h>
+#include <systemd/sd-bus.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,23 +56,23 @@ typedef enum {
 typedef struct ble_characteristic {
     const char* char_path; /**< device path under dbus */
     const char* uuid;      /**< uuid of the characteristic. */
-} ble_char;
+} lb_ble_char;
 
 typedef struct ble_service {
     const char* service_path;   /**< device path under dbus */
     const char* uuid;           /**< uuid of the service. */
     bool primary;               /**< is the service primary in the device */
-    ble_char** characteristics; /**< list of the characteristics inside the service */
+    lb_ble_char** characteristics; /**< list of the characteristics inside the service */
     int characteristics_size;   /**< count of characteristics in the service */
-} ble_service;
+} lb_ble_service;
 
 typedef struct bl_device {
     const char* device_path; /**< device path under dbus */
     const char* address;     /**< address of the bluetooth device */
     const char* name;        /**< name of the bluetooth device */
-    ble_service** services;  /**< list of the service inside the device */
+    lb_ble_service** services;  /**< list of the service inside the device */
     int services_size;       /**< count of services in the device */
-} bl_device;
+} lb_bl_device;
 
 typedef struct bl_context* lb_context;
 
@@ -114,40 +120,40 @@ lb_result_t lb_get_bl_devices(lb_context lb_ctx, int seconds);
 /**
  * Connect to a specific bluetooth device
  *
- * bl_device can be found by name, path or address using lb_get_device functions
+ * lb_bl_device can be found by name, path or address using lb_get_device functions
  *
  * @param lb_context to use
- * @param bl_device to connect to
+ * @param lb_bl_device to connect to
  * @return Result of operation
  */
-lb_result_t lb_connect_device(lb_context lb_ctx, bl_device* dev);
+lb_result_t lb_connect_device(lb_context lb_ctx, lb_bl_device* dev);
 
 /**
  * Disconnect from a specific bluetooth device
  *
  * @param lb_context to use
- * @param bl_device to disconnect from
+ * @param lb_bl_device to disconnect from
  * @return Result of operation
  */
-lb_result_t lb_disconnect_device(lb_context lb_ctx, bl_device* dev);
+lb_result_t lb_disconnect_device(lb_context lb_ctx, lb_bl_device* dev);
 
 /**
  * Pair with specific bluetooth device
  *
  * @param lb_context to use
- * @param bl_device to pair with
+ * @param lb_bl_device to pair with
  * @return Result of operation
  */
-lb_result_t lb_pair_device(lb_context lb_ctx, bl_device* dev);
+lb_result_t lb_pair_device(lb_context lb_ctx, lb_bl_device* dev);
 
 /**
  * Cancel pairing with specific bluetooth device
  *
  * @param lb_context to use
- * @param bl_device to cancel pair with
+ * @param lb_bl_device to cancel pair with
  * @return Result of operation
  */
-lb_result_t lb_unpair_device(lb_context lb_ctx, bl_device* dev);
+lb_result_t lb_unpair_device(lb_context lb_ctx, lb_bl_device* dev);
 
 /**
  * Populate ble_char with characteristic found by using it's device path under dbus
@@ -159,9 +165,9 @@ lb_result_t lb_unpair_device(lb_context lb_ctx, bl_device* dev);
  * @return Result of operation
  */
 lb_result_t lb_get_ble_characteristic_by_characteristic_path(lb_context lb_ctx,
-                                                             bl_device* dev,
+                                                             lb_bl_device* dev,
                                                              const char* characteristic_path,
-                                                             ble_char** ble_characteristic_ret);
+                                                             lb_ble_char** ble_characteristic_ret);
 
 /**
  * Populate ble_char with characteristic found by using it's uuid
@@ -173,7 +179,7 @@ lb_result_t lb_get_ble_characteristic_by_characteristic_path(lb_context lb_ctx,
  * @return Result of operation
  */
 lb_result_t
-lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, bl_device* dev, const char* uuid, ble_char** ble_characteristic_ret);
+lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, lb_ble_char** ble_characteristic_ret);
 
 /**
  * Populate ble_service with service found by using it's device path under dbus
@@ -185,9 +191,9 @@ lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, bl_device* dev, const char*
  * @return Result of operation
  */
 lb_result_t lb_get_ble_service_by_service_path(lb_context lb_ctx,
-                                               bl_device* dev,
+                                               lb_bl_device* dev,
                                                const char* service_path,
-                                               ble_service** ble_service_ret);
+                                               lb_ble_service** ble_service_ret);
 
 /**
  * Populate ble_service with service found by using it's uuid
@@ -198,7 +204,7 @@ lb_result_t lb_get_ble_service_by_service_path(lb_context lb_ctx,
  * @param ble_service to populate with service found
  * @return Result of operation
  */
-lb_result_t lb_get_ble_service_by_uuid(lb_context lb_ctx, bl_device* dev, const char* uuid, ble_service** ble_service_ret);
+lb_result_t lb_get_ble_service_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, lb_ble_service** ble_service_ret);
 
 /**
  * Populate the BLE device with it's services
@@ -207,17 +213,17 @@ lb_result_t lb_get_ble_service_by_uuid(lb_context lb_ctx, bl_device* dev, const 
  * @param bl_dev to scan services
  * @return Result of operation
  */
-lb_result_t lb_get_ble_device_services(lb_context lb_ctx, bl_device* dev);
+lb_result_t lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev);
 
 /**
  * Get bluetooth device by using it's device path under dbus
  *
  * @param lb_context to use
  * @param device_path to search for
- * @param bl_device_ret to populate with the found device
+ * @param lb_bl_device_ret to populate with the found device
  * @return Result of operation
  */
-lb_result_t lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, bl_device** bl_device_ret);
+lb_result_t lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, lb_bl_device** bl_device_ret);
 
 /**
  * Get bluetooth device by searching for specific name
@@ -226,20 +232,20 @@ lb_result_t lb_get_device_by_device_path(lb_context lb_ctx, const char* device_p
  *
  * @param lb_context to use
  * @param name to search for
- * @param bl_device_ret to populate with the found device
+ * @param lb_bl_device_ret to populate with the found device
  * @return Result of operation
  */
-lb_result_t lb_get_device_by_device_name(lb_context lb_ctx, const char* name, bl_device** bl_device_ret);
+lb_result_t lb_get_device_by_device_name(lb_context lb_ctx, const char* name, lb_bl_device** bl_device_ret);
 
 /**
  * Get bluetooth device by searching for specific address
  *
  * @param lb_context to use
  * @param address to search for
- * @param bl_device_ret to populate with the found device
+ * @param lb_bl_device_ret to populate with the found device
  * @return Result of operation
  */
-lb_result_t lb_get_device_by_device_address(lb_context lb_ctx, const char* address, bl_device** bl_device_ret);
+lb_result_t lb_get_device_by_device_address(lb_context lb_ctx, const char* address, lb_bl_device** bl_device_ret);
 
 /**
  * Write to a specific BLE device characteristic using it's uuid
@@ -252,7 +258,7 @@ lb_result_t lb_get_device_by_device_address(lb_context lb_ctx, const char* addre
  * @return Result of operation
  */
 lb_result_t
-lb_write_to_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, int size, uint8_t* value);
+lb_write_to_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, int size, uint8_t* value);
 
 /**
  * Read from a specific BLE device characteristic using it's uuid
@@ -265,7 +271,7 @@ lb_write_to_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, 
  * @return Result of operation
  */
 lb_result_t
-lb_read_from_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, size_t* size, uint8_t** result);
+lb_read_from_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, size_t* size, uint8_t** result);
 
 /**
  * Register a callback function for an event of characteristic value change
@@ -278,7 +284,7 @@ lb_read_from_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid,
  * @return Result of operation
  */
 lb_result_t lb_register_characteristic_read_event(lb_context lb_ctx,
-                                                  bl_device* dev,
+                                                  lb_bl_device* dev,
                                                   const char* uuid,
                                                   sd_bus_message_handler_t callback,
                                                   void* userdata);

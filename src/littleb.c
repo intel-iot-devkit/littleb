@@ -369,7 +369,7 @@ _is_ble_device(lb_context lb_ctx, const char* device_path)
         return false;
     }
 
-    bl_device* device = NULL;
+    lb_bl_device* device = NULL;
     r = lb_get_device_by_device_path(lb_ctx, device_path, &device);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device %s not found\n", device_path);
@@ -468,14 +468,14 @@ _is_device_paired(lb_context lb_ctx, const char* device_path)
 }
 
 lb_result_t
-_add_new_characteristic(lb_context lb_ctx, ble_service* service, const char* characteristic_path)
+_add_new_characteristic(lb_context lb_ctx, lb_ble_service* service, const char* characteristic_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int current_index = service->characteristics_size;
     if (service->characteristics_size == 0 || service->characteristics == NULL) {
-        service->characteristics = (ble_char**) malloc(sizeof(ble_char*));
+        service->characteristics = (lb_ble_char**) malloc(sizeof(lb_ble_char*));
         if (service->characteristics == NULL) {
             syslog(LOG_ERR, "%s: Error allocating memory for characteristics", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
@@ -484,14 +484,14 @@ _add_new_characteristic(lb_context lb_ctx, ble_service* service, const char* cha
     } else {
         service->characteristics_size++;
         service->characteristics =
-        realloc(service->characteristics, (service->characteristics_size) * sizeof(ble_char*));
+        realloc(service->characteristics, (service->characteristics_size) * sizeof(lb_ble_char*));
         if (service->characteristics == NULL) {
             syslog(LOG_ERR, "%s: Error reallocating memory for characteristics", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
         }
     }
 
-    ble_char* new_characteristic = (ble_char*) malloc(sizeof(ble_char));
+    lb_ble_char* new_characteristic = (lb_ble_char*) malloc(sizeof(lb_ble_char));
     if (new_characteristic == NULL) {
         syslog(LOG_ERR, "%s: Error allocating memory for new characteristic", __FUNCTION__);
         service->characteristics_size--;
@@ -524,7 +524,7 @@ _add_new_characteristic(lb_context lb_ctx, ble_service* service, const char* cha
 }
 
 lb_result_t
-_add_new_service(lb_context lb_ctx, bl_device* dev, const char* service_path)
+_add_new_service(lb_context lb_ctx, lb_bl_device* dev, const char* service_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -536,7 +536,7 @@ _add_new_service(lb_context lb_ctx, bl_device* dev, const char* service_path)
 
     int current_index = dev->services_size;
     if (dev->services_size == 0 || dev->services == NULL) {
-        dev->services = (ble_service**) malloc(sizeof(ble_service*));
+        dev->services = (lb_ble_service**) malloc(sizeof(lb_ble_service*));
         if (dev->services == NULL) {
             syslog(LOG_ERR, "%s: Error allocating memory for services", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
@@ -544,14 +544,14 @@ _add_new_service(lb_context lb_ctx, bl_device* dev, const char* service_path)
         dev->services_size++;
     } else {
         dev->services_size++;
-        dev->services = realloc(dev->services, (dev->services_size) * sizeof(ble_service*));
+        dev->services = realloc(dev->services, (dev->services_size) * sizeof(lb_ble_service*));
         if (dev->services == NULL) {
             syslog(LOG_ERR, "%s: Error reallocating memory for services", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
         }
     }
 
-    ble_service* new_service = (ble_service*) malloc(sizeof(ble_service));
+    lb_ble_service* new_service = (lb_ble_service*) malloc(sizeof(lb_ble_service));
     if (new_service == NULL) {
         syslog(LOG_ERR, "%s: Error allocating memory for new_service", __FUNCTION__);
         dev->services_size--;
@@ -595,7 +595,7 @@ _add_new_device(lb_context lb_ctx, const char* device_path)
 #endif
     int current_index = lb_ctx->devices_size;
     if (lb_ctx->devices_size == 0 || lb_ctx->devices == NULL) {
-        lb_ctx->devices = (bl_device**) malloc(sizeof(bl_device*));
+        lb_ctx->devices = (lb_bl_device**) malloc(sizeof(lb_bl_device*));
         if (lb_ctx->devices == NULL) {
             syslog(LOG_ERR, "%s: Error allocating memory for devices", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
@@ -603,14 +603,14 @@ _add_new_device(lb_context lb_ctx, const char* device_path)
         lb_ctx->devices_size++;
     } else {
         lb_ctx->devices_size++;
-        lb_ctx->devices = realloc(lb_ctx->devices, (lb_ctx->devices_size) * sizeof(bl_device*));
+        lb_ctx->devices = realloc(lb_ctx->devices, (lb_ctx->devices_size) * sizeof(lb_bl_device*));
         if (lb_ctx->devices == NULL) {
             syslog(LOG_ERR, "%s: Error reallocating memory for devices", __FUNCTION__);
             return -LB_ERROR_MEMEORY_ALLOCATION;
         }
     }
 
-    bl_device* new_device = (bl_device*) malloc(sizeof(bl_device));
+    lb_bl_device* new_device = (lb_bl_device*) malloc(sizeof(lb_bl_device));
     if (new_device == NULL) {
         syslog(LOG_ERR, "%s: Error allocating memory for new_device", __FUNCTION__);
         lb_ctx->devices_size--;
@@ -894,7 +894,7 @@ lb_get_bl_devices(lb_context lb_ctx, int seconds)
 }
 
 lb_result_t
-lb_connect_device(lb_context lb_ctx, bl_device* dev)
+lb_connect_device(lb_context lb_ctx, lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -933,7 +933,7 @@ lb_connect_device(lb_context lb_ctx, bl_device* dev)
 }
 
 lb_result_t
-lb_disconnect_device(lb_context lb_ctx, bl_device* dev)
+lb_disconnect_device(lb_context lb_ctx, lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -972,7 +972,7 @@ lb_disconnect_device(lb_context lb_ctx, bl_device* dev)
 }
 
 lb_result_t
-lb_pair_device(lb_context lb_ctx, bl_device* dev)
+lb_pair_device(lb_context lb_ctx, lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1010,7 +1010,7 @@ lb_pair_device(lb_context lb_ctx, bl_device* dev)
 }
 
 lb_result_t
-lb_unpair_device(lb_context lb_ctx, bl_device* dev)
+lb_unpair_device(lb_context lb_ctx, lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1049,7 +1049,7 @@ lb_unpair_device(lb_context lb_ctx, bl_device* dev)
 }
 
 lb_result_t
-lb_get_ble_device_services(lb_context lb_ctx, bl_device* dev)
+lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1114,7 +1114,7 @@ lb_get_ble_device_services(lb_context lb_ctx, bl_device* dev)
             int j = 0;
             while (objects[j] != NULL) {
                 if (strstr(objects[j], service_path) && _is_ble_characteristic(lb_ctx, objects[j])) {
-                    ble_service* new_service = NULL;
+                    lb_ble_service* new_service = NULL;
                     r = lb_get_ble_service_by_service_path(lb_ctx, dev, service_path, &new_service);
                     if (r < 0) {
                         syslog(LOG_ERR, "%s: Error getting ble service", __FUNCTION__);
@@ -1147,9 +1147,9 @@ lb_get_ble_device_services(lb_context lb_ctx, bl_device* dev)
 
 lb_result_t
 lb_get_ble_characteristic_by_characteristic_path(lb_context lb_ctx,
-                                                 bl_device* dev,
+                                                 lb_bl_device* dev,
                                                  const char* characteristic_path,
-                                                 ble_char** ble_characteristic_ret)
+                                                 lb_ble_char** ble_characteristic_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1184,7 +1184,7 @@ lb_get_ble_characteristic_by_characteristic_path(lb_context lb_ctx,
 }
 
 lb_result_t
-lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, bl_device* dev, const char* uuid, ble_char** ble_characteristic_ret)
+lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, lb_ble_char** ble_characteristic_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1223,7 +1223,7 @@ lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, bl_device* dev, const char*
 }
 
 lb_result_t
-lb_get_ble_service_by_service_path(lb_context lb_ctx, bl_device* dev, const char* service_path, ble_service** ble_service_ret)
+lb_get_ble_service_by_service_path(lb_context lb_ctx, lb_bl_device* dev, const char* service_path, lb_ble_service** ble_service_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1255,7 +1255,7 @@ lb_get_ble_service_by_service_path(lb_context lb_ctx, bl_device* dev, const char
 }
 
 lb_result_t
-lb_get_ble_service_by_uuid(lb_context lb_ctx, bl_device* dev, const char* uuid, ble_service** ble_service_ret)
+lb_get_ble_service_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, lb_ble_service** ble_service_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1292,7 +1292,7 @@ lb_get_ble_service_by_uuid(lb_context lb_ctx, bl_device* dev, const char* uuid, 
 }
 
 lb_result_t
-lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, bl_device** bl_device_ret)
+lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, lb_bl_device** bl_device_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1319,7 +1319,7 @@ lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, bl_devi
 }
 
 lb_result_t
-lb_get_device_by_device_name(lb_context lb_ctx, const char* name, bl_device** bl_device_ret)
+lb_get_device_by_device_name(lb_context lb_ctx, const char* name, lb_bl_device** bl_device_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1346,7 +1346,7 @@ lb_get_device_by_device_name(lb_context lb_ctx, const char* name, bl_device** bl
 }
 
 lb_result_t
-lb_get_device_by_device_address(lb_context lb_ctx, const char* address, bl_device** bl_device_ret)
+lb_get_device_by_device_address(lb_context lb_ctx, const char* address, lb_bl_device** bl_device_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1373,7 +1373,7 @@ lb_get_device_by_device_address(lb_context lb_ctx, const char* address, bl_devic
 }
 
 lb_result_t
-lb_write_to_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, int size, uint8_t* value)
+lb_write_to_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, int size, uint8_t* value)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1381,7 +1381,7 @@ lb_write_to_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, 
     int r, i;
     sd_bus_message* func_call = NULL;
     sd_bus_error error = SD_BUS_ERROR_NULL;
-    ble_char* characteristics = NULL;
+    lb_ble_char* characteristics = NULL;
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
@@ -1458,7 +1458,7 @@ lb_write_to_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, 
 }
 
 lb_result_t
-lb_read_from_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid, size_t* size, uint8_t** result)
+lb_read_from_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, size_t* size, uint8_t** result)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1466,7 +1466,7 @@ lb_read_from_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid,
     int r, i;
     sd_bus_message* reply = NULL;
     sd_bus_error error = SD_BUS_ERROR_NULL;
-    ble_char* characteristics = NULL;
+    lb_ble_char* characteristics = NULL;
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
@@ -1527,7 +1527,7 @@ lb_read_from_characteristic(lb_context lb_ctx, bl_device* dev, const char* uuid,
 
 lb_result_t
 lb_register_characteristic_read_event(lb_context lb_ctx,
-                                      bl_device* dev,
+                                      lb_bl_device* dev,
                                       const char* uuid,
                                       sd_bus_message_handler_t callback,
                                       void* userdata)
@@ -1537,7 +1537,7 @@ lb_register_characteristic_read_event(lb_context lb_ctx,
 #endif
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
-    ble_char* ble_char_new = NULL;
+    lb_ble_char* ble_char_new = NULL;
     char match[65];
 
     if (lb_ctx == NULL) {
