@@ -22,7 +22,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "../include/littleb.h"
+#include <stdio.h>
+#include "littleb.h"
 
 static int
 test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
@@ -31,14 +32,14 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     int r, i;
     size_t size = 0;
     uint8_t* result = NULL;
-    int* userdata_test = (int*) userdata;
+    const char* userdata_test = (const char*) userdata;
 
-    printf("callback called it userdata: %d\n", *userdata_test);
+    printf("callback called with userdata: %s\n", userdata_test);
 
     r = lb_parse_uart_service_message(message, (const void**) &result, &size);
     if (r < 0) {
         fprintf(stderr, "ERROR: couldn't parse uart message\n");
-        return LB_ERROR_UNSPECIFIED;
+        return -1;
     }
 
     printf("message is:\n");
@@ -47,7 +48,7 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     }
     printf("\n");
 
-    return LB_SUCCESS;
+    return 0;
 }
 
 int
@@ -61,7 +62,7 @@ main(int argc, char* argv[])
         exit(r);
     }
 
-    lb_context* lb_ctx = lb_context_new();
+    lb_context lb_ctx = lb_context_new();
     if (lb_ctx == NULL) {
         fprintf(stderr, "ERROR: lb_context_new\n");
         exit(r);
@@ -72,12 +73,9 @@ main(int argc, char* argv[])
         fprintf(stderr, "ERROR: lb_get_bl_devices\n");
         goto cleanup;
     }
-    for (i = 0; i < lb_ctx->devices_size; i++) {
-        printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
-    }
 
     // search for our specific device named "FIRMATA"
-    bl_device* firmata = NULL;
+    lb_bl_device* firmata = NULL;
     r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device FIRMATA not found\n");
@@ -124,19 +122,18 @@ main(int argc, char* argv[])
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        sleep(0.5);
+        usleep(1000000);
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        sleep(0.5);
+        usleep(1000000);
     }
     printf("\n");
 
-    int* userdata_test = malloc(sizeof(int));
-    *userdata_test = 100;
+    const char* userdata_test = "test";
 
     r =
     lb_register_characteristic_read_event(lb_ctx, firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
