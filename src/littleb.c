@@ -1460,7 +1460,6 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
 
     pthread_mutex_lock(&lock);
     r = sd_bus_call(lb_ctx->bus, func_call, 0, &error, NULL);
-    pthread_mutex_unlock(&lock);
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_call WriteValue on device %s failed with error: %s",
                __FUNCTION__, characteristics->char_path, error.message);
@@ -1468,6 +1467,14 @@ lb_write_to_characteristic(lb_context* lb_ctx, bl_device* dev, const char* uuid,
         sd_bus_message_unref(func_call);
         return -LB_ERROR_SD_BUS_CALL_FAIL;
     }
+    r = sd_bus_process(lb_ctx->bus, NULL);
+    if (r < 0) {
+        syslog(LOG_ERR, "Failed to process bus: %s\n", strerror(-r));
+        sd_bus_error_free(&error);
+        sd_bus_message_unref(func_call);
+        return -LB_ERROR_SD_BUS_CALL_FAIL;
+    }
+    pthread_mutex_unlock(&lock);
 
     sd_bus_error_free(&error);
     sd_bus_message_unref(func_call);
