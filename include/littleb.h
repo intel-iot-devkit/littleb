@@ -87,10 +87,11 @@ typedef struct lb_context {
     int devices_size;    /**< count of devices found*/
 } lb_context;
 
-typedef struct event_callback_pair {
+typedef struct event_matches_callbacks {
     const char* event;
     sd_bus_message_handler_t* callback;
-} event_pair;
+    void* userdata;
+} event_matches_callbacks;
 
 
 /**
