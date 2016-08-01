@@ -27,14 +27,17 @@
 static int
 test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
 {
-    int r, i;
-    size_t size;
-    uint8_t* result;
 
-    r = lb_parse_uart_service_message(message, (const void**) result, &size);
+    int r, i;
+    size_t size = 0;
+    uint8_t* result = NULL;
+
+    printf("callback called\n");
+
+    r = lb_parse_uart_service_message(message, (const void**) &result, &size);
     if (r < 0) {
         fprintf(stderr, "ERROR: couldn't parse uart message\n");
-        exit(r);
+        return LB_ERROR_UNSPECIFIED;
     }
 
     printf("message is:\n");
@@ -66,7 +69,7 @@ main(int argc, char* argv[])
     r = lb_get_bl_devices(lb_ctx, 5);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_bl_devices\n");
-        exit(r);
+        goto cleanup;
     }
     for (i = 0; i < lb_ctx->devices_size; i++) {
         printf("%s\t%s\n", lb_ctx->devices[i]->address, lb_ctx->devices[i]->name);
@@ -77,16 +80,13 @@ main(int argc, char* argv[])
     r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device FIRMATA not found\n");
-        exit(r);
+        goto cleanup;
     }
 
-    int retry = 0;
-    while (lb_connect_device(lb_ctx, firmata) < 0) {
-        if (retry == 10)
-            exit(-EXIT_FAILURE);
-        retry++;
-        fprintf(stderr, "ERROR: lb_connect_device retrying\n");
-        sleep(0.1);
+    r = lb_connect_device(lb_ctx, firmata);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: lb_connect_device\n");
+        goto cleanup;
     }
 
     // r = lb_pair_device(lb_ctx, firmata);
@@ -98,7 +98,7 @@ main(int argc, char* argv[])
     r = lb_get_ble_device_services(lb_ctx, firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_ble_device_services\n");
-        exit(r);
+        goto cleanup;
     }
 
     printf("Device Found:\nName: %s\nDevice Address: %s\n", firmata->name, firmata->address);
@@ -134,30 +134,26 @@ main(int argc, char* argv[])
     }
     printf("\n");
 
-    // TODO: this is just a test remove later
     r = lb_register_characteristic_read_event(lb_ctx, firmata,
                                               "6e400003-b5a3-f393-e0a9-e50e24dcca9e", test_callback, NULL);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
+        goto cleanup;
     }
 
-    retry = 0;
-    do {
-        uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
-        r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
-        if (r < 0) {
-            fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
-            retry++;
-            if (retry == 10)
-                break;
-            sleep(1);
-            continue;
-        }
-        printf("get_version\n");
-    } while (r < 0);
 
+    printf("get_version\n");
+    fflush(stdout);
+    uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
+    r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
+    }
     printf("waiting for callbacks\n");
-    sleep(5);
+    fflush(stdout);
+    sleep(2);
+
+cleanup:
 
     // r = lb_unpair_device(lb_ctx, firmata);
     // if (r < 0) {
