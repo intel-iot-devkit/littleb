@@ -1,7 +1,7 @@
-Little Bluetooth LE Library
+LittleB: Bluetooth Low Energy Library
 =============
 
-This project aims to create clean, modern and easy to use Bluetooth LE API.
+This project aims to create a clean, modern and easy to use Bluetooth Low Energy API.
 LittleB exposes the BLE GATT API for Pure C using BlueZ over SD-Bus.
 
 API Documentation
