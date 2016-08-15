@@ -31,7 +31,7 @@ include (GetGitRevisionDescription)
 git_describe (VERSION "--tags")
 if ("x_${VERSION}" STREQUAL "x_GIT-NOTFOUND" OR "x_${VERSION}" STREQUAL "x_HEAD-HASH-NOTFOUND" OR "x_${VERSION}" STREQUAL "x_-128-NOTFOUND")
   message (WARNING " - Install git to compile a production liblittleb!")
-  set (VERSION "v0.0.1-dirty")
+  set (VERSION "v0.1.0")
 endif ()
 
 message (STATUS "INFO - liblittleb Version ${VERSION}")
