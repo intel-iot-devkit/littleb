@@ -3,9 +3,9 @@ exec_prefix=${prefix}
 libdir=${exec_prefix}/@LIB_INSTALL_DIR@
 includedir=${prefix}/include
 
-Name: mraa
+Name: littleb
 Description: Low Level Skeleton Library for Communication
-Version: @mraa_VERSION_STRING@
+Version: @littleb_VERSION_STRING@
 
-Libs: -L${libdir} -lmraa
+Libs: -L${libdir} -llittleb
 Cflags: -I${includedir}
