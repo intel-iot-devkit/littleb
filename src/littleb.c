@@ -726,8 +726,6 @@ lb_init()
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    int r;
-
     return LB_SUCCESS;
 }
 
@@ -849,9 +847,7 @@ lb_get_bl_devices(lb_context lb_ctx, int seconds)
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     const char** objects;
-    const char* point;
     int i = 0, r = 0;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
@@ -1054,7 +1050,6 @@ lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    const char* point;
     int i = 0, r = 0;
     sd_bus_error error = SD_BUS_ERROR_NULL;
 
@@ -1378,7 +1373,7 @@ lb_write_to_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uui
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    int r, i;
+    int r;
     sd_bus_message* func_call = NULL;
     sd_bus_error error = SD_BUS_ERROR_NULL;
     lb_ble_char* characteristics = NULL;
@@ -1463,7 +1458,7 @@ lb_read_from_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uu
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    int r, i;
+    int r;
     sd_bus_message* reply = NULL;
     sd_bus_error error = SD_BUS_ERROR_NULL;
     lb_ble_char* characteristics = NULL;
