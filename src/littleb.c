@@ -1533,7 +1533,7 @@ lb_register_characteristic_read_event(lb_context lb_ctx,
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
     lb_ble_char* ble_char_new = NULL;
-    char match[65];
+    char match[68];
 
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
@@ -1571,7 +1571,7 @@ lb_register_characteristic_read_event(lb_context lb_ctx,
         return -LB_ERROR_SD_BUS_CALL_FAIL;
     }
 
-    snprintf(match, 66, "path='%s'", ble_char_new->char_path);
+    snprintf(match, 67, "path='%s'", ble_char_new->char_path);
 
     int current_index = event_arr_size;
     if (event_arr_size == 0 || events_matches_array == NULL) {
