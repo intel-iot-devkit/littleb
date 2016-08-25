@@ -28,6 +28,7 @@ static sd_event* event = NULL;
 static pthread_t event_thread;
 static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
+static lb_context lb_ctx = NULL;
 
 void*
 _run_event_loop(void* arg)
@@ -99,7 +100,7 @@ _convert_device_path_to_address(const char* address)
 }
 
 bool
-_is_bus_connected(lb_context lb_ctx)
+_is_bus_connected()
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -112,7 +113,7 @@ _is_bus_connected(lb_context lb_ctx)
 }
 
 lb_result_t
-_get_root_objects(lb_context lb_ctx, const char** objects)
+_get_root_objects(const char** objects)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -208,7 +209,7 @@ _get_root_objects(lb_context lb_ctx, const char** objects)
 }
 
 const char*
-_get_device_name(lb_context lb_ctx, const char* device_path)
+_get_device_name(const char* device_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -230,7 +231,7 @@ _get_device_name(lb_context lb_ctx, const char* device_path)
 }
 
 const char*
-_get_device_address(lb_context lb_ctx, const char* device_path)
+_get_device_address(const char* device_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -253,7 +254,7 @@ _get_device_address(lb_context lb_ctx, const char* device_path)
 }
 
 const char*
-_get_service_uuid(lb_context lb_ctx, const char* service_path)
+_get_service_uuid(const char* service_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -276,7 +277,7 @@ _get_service_uuid(lb_context lb_ctx, const char* service_path)
 }
 
 const char*
-_get_characteristic_uuid(lb_context lb_ctx, const char* characteristic_path)
+_get_characteristic_uuid(const char* characteristic_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -300,7 +301,7 @@ _get_characteristic_uuid(lb_context lb_ctx, const char* characteristic_path)
 }
 
 bool
-_is_string_in_device_introspection(lb_context lb_ctx, const char* device_path, const char* str)
+_is_string_in_device_introspection(const char* device_path, const char* str)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -345,16 +346,16 @@ _is_string_in_device_introspection(lb_context lb_ctx, const char* device_path, c
 }
 
 bool
-_is_bl_device(lb_context lb_ctx, const char* device_path)
+_is_bl_device(const char* device_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    return _is_string_in_device_introspection(lb_ctx, device_path, BLUEZ_DEVICE);
+    return _is_string_in_device_introspection(device_path, BLUEZ_DEVICE);
 }
 
 bool
-_is_ble_device(lb_context lb_ctx, const char* device_path)
+_is_ble_device(const char* device_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -363,13 +364,13 @@ _is_ble_device(lb_context lb_ctx, const char* device_path)
     int i = 0, r = 0;
     bool result = false;
 
-    if (!_is_bl_device(lb_ctx, device_path)) {
+    if (!_is_bl_device(device_path)) {
         syslog(LOG_ERR, "%s: not a bl device", __FUNCTION__);
         return false;
     }
 
     lb_bl_device* device = NULL;
-    r = lb_get_device_by_device_path(lb_ctx, device_path, &device);
+    r = lb_get_device_by_device_path(device_path, &device);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device %s not found\n", device_path);
     }
@@ -383,7 +384,7 @@ _is_ble_device(lb_context lb_ctx, const char* device_path)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    r = _get_root_objects(lb_ctx, objects);
+    r = _get_root_objects(objects);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
         return false;
@@ -402,25 +403,25 @@ _is_ble_device(lb_context lb_ctx, const char* device_path)
 }
 
 bool
-_is_ble_service(lb_context lb_ctx, const char* service_path)
+_is_ble_service(const char* service_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    return _is_string_in_device_introspection(lb_ctx, service_path, BLUEZ_GATT_SERVICE);
+    return _is_string_in_device_introspection(service_path, BLUEZ_GATT_SERVICE);
 }
 
 bool
-_is_ble_characteristic(lb_context lb_ctx, const char* service_path)
+_is_ble_characteristic(const char* service_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    return _is_string_in_device_introspection(lb_ctx, service_path, BLUEZ_GATT_CHARACTERISTICS);
+    return _is_string_in_device_introspection(service_path, BLUEZ_GATT_CHARACTERISTICS);
 }
 
 bool
-_is_service_primary(lb_context lb_ctx, const char* service_path)
+_is_service_primary(const char* service_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -444,7 +445,7 @@ _is_service_primary(lb_context lb_ctx, const char* service_path)
 }
 
 bool
-_is_device_paired(lb_context lb_ctx, const char* device_path)
+_is_device_paired(const char* device_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -467,7 +468,7 @@ _is_device_paired(lb_context lb_ctx, const char* device_path)
 }
 
 lb_result_t
-_add_new_characteristic(lb_context lb_ctx, lb_ble_service* service, const char* characteristic_path)
+_add_new_characteristic(lb_ble_service* service, const char* characteristic_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -504,7 +505,7 @@ _add_new_characteristic(lb_context lb_ctx, lb_ble_service* service, const char* 
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    const char* uuid = _get_characteristic_uuid(lb_ctx, characteristic_path);
+    const char* uuid = _get_characteristic_uuid(characteristic_path);
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find characteristic uuid", __FUNCTION__);
         new_characteristic->uuid = strdup("null");
@@ -523,12 +524,12 @@ _add_new_characteristic(lb_context lb_ctx, lb_ble_service* service, const char* 
 }
 
 lb_result_t
-_add_new_service(lb_context lb_ctx, lb_bl_device* dev, const char* service_path)
+_add_new_service(lb_bl_device* dev, const char* service_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
-    if (!_is_ble_device(lb_ctx, dev->device_path)) {
+    if (!_is_ble_device(dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
         return -LB_ERROR_INVALID_DEVICE;
     }
@@ -563,7 +564,7 @@ _add_new_service(lb_context lb_ctx, lb_bl_device* dev, const char* service_path)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    const char* uuid = _get_service_uuid(lb_ctx, service_path);
+    const char* uuid = _get_service_uuid(service_path);
     if (uuid == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find service uuid", __FUNCTION__);
         new_service->uuid = strdup("null");
@@ -576,7 +577,7 @@ _add_new_service(lb_context lb_ctx, lb_bl_device* dev, const char* service_path)
         new_service->uuid = uuid;
     }
 
-    new_service->primary = _is_service_primary(lb_ctx, service_path);
+    new_service->primary = _is_service_primary(service_path);
 
     new_service->characteristics = NULL;
     new_service->characteristics_size = 0;
@@ -587,7 +588,7 @@ _add_new_service(lb_context lb_ctx, lb_bl_device* dev, const char* service_path)
 }
 
 lb_result_t
-_add_new_device(lb_context lb_ctx, const char* device_path)
+_add_new_device(const char* device_path)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -623,7 +624,7 @@ _add_new_device(lb_context lb_ctx, const char* device_path)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    const char* name = _get_device_name(lb_ctx, device_path);
+    const char* name = _get_device_name(device_path);
     if (name == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find device name", __FUNCTION__);
         new_device->name = strdup("null");
@@ -636,7 +637,7 @@ _add_new_device(lb_context lb_ctx, const char* device_path)
     } else {
         new_device->name = name;
     }
-    const char* address = _get_device_address(lb_ctx, device_path);
+    const char* address = _get_device_address(device_path);
     if (address == NULL) {
         syslog(LOG_ERR, "%s: Error couldn't find device address", __FUNCTION__);
         new_device->address = "null";
@@ -654,7 +655,7 @@ _add_new_device(lb_context lb_ctx, const char* device_path)
 }
 
 lb_result_t
-_scan_devices(lb_context lb_ctx, int seconds)
+_scan_devices(int seconds)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -693,7 +694,7 @@ _scan_devices(lb_context lb_ctx, int seconds)
 }
 
 lb_result_t
-_open_system_bus(lb_context lb_ctx)
+_open_system_bus()
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -710,7 +711,7 @@ _open_system_bus(lb_context lb_ctx)
 }
 
 lb_result_t
-_close_system_bus(lb_context lb_ctx)
+_close_system_bus()
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -721,71 +722,39 @@ _close_system_bus(lb_context lb_ctx)
 }
 
 lb_result_t
-lb_init()
-{
-#ifdef DEBUG
-    printf("Method Called: %s\n", __FUNCTION__);
-#endif
-    return LB_SUCCESS;
-}
-
-lb_result_t
-lb_destroy()
-{
-#ifdef DEBUG
-    printf("Method Called: %s\n", __FUNCTION__);
-#endif
-    int i, r;
-
-    pthread_cancel(event_thread);
-    pthread_join(event_thread, NULL);
-
-    r = sd_event_exit(event, SIGINT);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
-    }
-    sd_event_unref(event);
-
-    if (events_matches_array != NULL) {
-        for (i = 0; i < event_arr_size; i++) {
-            free(events_matches_array[i]);
-        }
-        free(events_matches_array);
-    }
-
-    return LB_SUCCESS;
-}
-
-lb_context
 lb_context_new()
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
 #endif
     int r = 0;
-    lb_context new_context;
 
-    new_context = (lb_context) malloc(sizeof(struct bl_context));
-    if (new_context == NULL) {
-        syslog(LOG_ERR, "%s: Error allocating memory for lb_context", __FUNCTION__);
-        return NULL;
+    if (lb_ctx != NULL) {
+        syslog(LOG_ERR, "%s: Context already initialized", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
-    new_context->bus = NULL;
-    new_context->devices = NULL;
-    new_context->devices_size = 0;
+    lb_ctx = (lb_context) malloc(sizeof(struct bl_context));
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: Error allocating memory for lb_context", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
 
-    r = _open_system_bus(new_context);
+    lb_ctx->bus = NULL;
+    lb_ctx->devices = NULL;
+    lb_ctx->devices_size = 0;
+
+    r = _open_system_bus();
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to open system bus: %s", __FUNCTION__, strerror(-r));
-        return NULL;
+        return -LB_ERROR_INVALID_CONTEXT;
     }
 
-    return new_context;
+    return LB_SUCCESS;
 }
 
 lb_result_t
-lb_context_free(lb_context lb_ctx)
+lb_context_free()
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -837,11 +806,53 @@ lb_context_free(lb_context lb_ctx)
         free(lb_ctx->devices);
     free(lb_ctx);
 
+    lb_ctx = NULL;
     return LB_SUCCESS;
 }
 
 lb_result_t
-lb_get_bl_devices(lb_context lb_ctx, int seconds)
+lb_init()
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    if (lb_context_new() != LB_SUCCESS)
+        return LB_ERROR_INVALID_CONTEXT;
+
+    return LB_SUCCESS;
+}
+
+lb_result_t
+lb_destroy()
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    int i, r;
+
+    pthread_cancel(event_thread);
+    pthread_join(event_thread, NULL);
+
+    r = sd_event_exit(event, SIGINT);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
+    }
+    sd_event_unref(event);
+
+    if (events_matches_array != NULL) {
+        for (i = 0; i < event_arr_size; i++) {
+            free(events_matches_array[i]);
+        }
+        free(events_matches_array);
+    }
+
+    lb_context_free();
+
+    return LB_SUCCESS;
+}
+
+lb_result_t
+lb_get_bl_devices(int seconds)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -864,21 +875,21 @@ lb_get_bl_devices(lb_context lb_ctx, int seconds)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    r = _scan_devices(lb_ctx, seconds);
+    r = _scan_devices(seconds);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
         return -LB_ERROR_UNSPECIFIED;
     }
 
-    r = _get_root_objects(lb_ctx, objects);
+    r = _get_root_objects(objects);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
         return -LB_ERROR_UNSPECIFIED;
     }
 
     while (objects[i] != NULL) {
-        if (_is_bl_device(lb_ctx, objects[i])) {
-            _add_new_device(lb_ctx, objects[i]);
+        if (_is_bl_device(objects[i])) {
+            _add_new_device(objects[i]);
         }
         free((char*) objects[i]);
         i++;
@@ -890,7 +901,7 @@ lb_get_bl_devices(lb_context lb_ctx, int seconds)
 }
 
 lb_result_t
-lb_connect_device(lb_context lb_ctx, lb_bl_device* dev)
+lb_connect_device(lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -929,7 +940,7 @@ lb_connect_device(lb_context lb_ctx, lb_bl_device* dev)
 }
 
 lb_result_t
-lb_disconnect_device(lb_context lb_ctx, lb_bl_device* dev)
+lb_disconnect_device(lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -968,7 +979,7 @@ lb_disconnect_device(lb_context lb_ctx, lb_bl_device* dev)
 }
 
 lb_result_t
-lb_pair_device(lb_context lb_ctx, lb_bl_device* dev)
+lb_pair_device(lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1006,7 +1017,7 @@ lb_pair_device(lb_context lb_ctx, lb_bl_device* dev)
 }
 
 lb_result_t
-lb_unpair_device(lb_context lb_ctx, lb_bl_device* dev)
+lb_unpair_device(lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1045,7 +1056,7 @@ lb_unpair_device(lb_context lb_ctx, lb_bl_device* dev)
 }
 
 lb_result_t
-lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
+lb_get_ble_device_services(lb_bl_device* dev)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1063,14 +1074,14 @@ lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
         return -LB_ERROR_INVALID_DEVICE;
     }
 
-    if (!_is_bl_device(lb_ctx, dev->device_path)) {
+    if (!_is_bl_device(dev->device_path)) {
         syslog(LOG_ERR, "%s: device %s not a bl device", __FUNCTION__, dev->device_path);
         sd_bus_error_free(&error);
         return -LB_ERROR_INVALID_DEVICE;
     }
 
-    if (!_is_device_paired(lb_ctx, dev->device_path)) {
-        r = lb_pair_device(lb_ctx, dev);
+    if (!_is_device_paired(dev->device_path)) {
+        r = lb_pair_device(dev);
         if (r < 0) {
             syslog(LOG_ERR, "%s: error pairing device", __FUNCTION__);
             sd_bus_error_free(&error);
@@ -1089,7 +1100,7 @@ lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
         return -LB_ERROR_MEMEORY_ALLOCATION;
     }
 
-    r = _get_root_objects(lb_ctx, objects);
+    r = _get_root_objects(objects);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
         if (objects != NULL)
@@ -1099,23 +1110,23 @@ lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
     }
 
     while (objects[i] != NULL) {
-        if (strstr(objects[i], dev->device_path) && _is_ble_service(lb_ctx, objects[i])) {
+        if (strstr(objects[i], dev->device_path) && _is_ble_service(objects[i])) {
             const char* service_path = objects[i];
-            r = _add_new_service(lb_ctx, dev, service_path);
+            r = _add_new_service(dev, service_path);
             if (r < 0) {
                 syslog(LOG_ERR, "%s: Error adding ble service", __FUNCTION__);
                 continue;
             }
             int j = 0;
             while (objects[j] != NULL) {
-                if (strstr(objects[j], service_path) && _is_ble_characteristic(lb_ctx, objects[j])) {
+                if (strstr(objects[j], service_path) && _is_ble_characteristic(objects[j])) {
                     lb_ble_service* new_service = NULL;
-                    r = lb_get_ble_service_by_service_path(lb_ctx, dev, service_path, &new_service);
+                    r = lb_get_ble_service_by_service_path(dev, service_path, &new_service);
                     if (r < 0) {
                         syslog(LOG_ERR, "%s: Error getting ble service", __FUNCTION__);
                         continue;
                     }
-                    _add_new_characteristic(lb_ctx, new_service, objects[j]);
+                    _add_new_characteristic(new_service, objects[j]);
                     if (r < 0) {
                         syslog(LOG_ERR, "%s: Error adding ble characteristic", __FUNCTION__);
                         continue;
@@ -1141,8 +1152,7 @@ lb_get_ble_device_services(lb_context lb_ctx, lb_bl_device* dev)
 }
 
 lb_result_t
-lb_get_ble_characteristic_by_characteristic_path(lb_context lb_ctx,
-                                                 lb_bl_device* dev,
+lb_get_ble_characteristic_by_characteristic_path(lb_bl_device* dev,
                                                  const char* characteristic_path,
                                                  lb_ble_char** ble_characteristic_ret)
 {
@@ -1179,7 +1189,7 @@ lb_get_ble_characteristic_by_characteristic_path(lb_context lb_ctx,
 }
 
 lb_result_t
-lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, lb_ble_char** ble_characteristic_ret)
+lb_get_ble_characteristic_by_uuid(lb_bl_device* dev, const char* uuid, lb_ble_char** ble_characteristic_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1201,7 +1211,7 @@ lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const ch
         return -LB_ERROR_INVALID_DEVICE;
     }
 
-    if (!_is_ble_device(lb_ctx, dev->device_path)) {
+    if (!_is_ble_device(dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
         return -LB_ERROR_INVALID_DEVICE;
     }
@@ -1218,7 +1228,7 @@ lb_get_ble_characteristic_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const ch
 }
 
 lb_result_t
-lb_get_ble_service_by_service_path(lb_context lb_ctx, lb_bl_device* dev, const char* service_path, lb_ble_service** ble_service_ret)
+lb_get_ble_service_by_service_path(lb_bl_device* dev, const char* service_path, lb_ble_service** ble_service_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1250,7 +1260,7 @@ lb_get_ble_service_by_service_path(lb_context lb_ctx, lb_bl_device* dev, const c
 }
 
 lb_result_t
-lb_get_ble_service_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, lb_ble_service** ble_service_ret)
+lb_get_ble_service_by_uuid(lb_bl_device* dev, const char* uuid, lb_ble_service** ble_service_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1272,7 +1282,7 @@ lb_get_ble_service_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uui
         return -LB_ERROR_INVALID_DEVICE;
     }
 
-    if (!_is_ble_device(lb_ctx, dev->device_path)) {
+    if (!_is_ble_device(dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
         return -LB_ERROR_INVALID_DEVICE;
     }
@@ -1287,7 +1297,7 @@ lb_get_ble_service_by_uuid(lb_context lb_ctx, lb_bl_device* dev, const char* uui
 }
 
 lb_result_t
-lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, lb_bl_device** bl_device_ret)
+lb_get_device_by_device_path(const char* device_path, lb_bl_device** bl_device_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1314,7 +1324,7 @@ lb_get_device_by_device_path(lb_context lb_ctx, const char* device_path, lb_bl_d
 }
 
 lb_result_t
-lb_get_device_by_device_name(lb_context lb_ctx, const char* name, lb_bl_device** bl_device_ret)
+lb_get_device_by_device_name(const char* name, lb_bl_device** bl_device_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1341,7 +1351,7 @@ lb_get_device_by_device_name(lb_context lb_ctx, const char* name, lb_bl_device**
 }
 
 lb_result_t
-lb_get_device_by_device_address(lb_context lb_ctx, const char* address, lb_bl_device** bl_device_ret)
+lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_ret)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1368,7 +1378,7 @@ lb_get_device_by_device_address(lb_context lb_ctx, const char* address, lb_bl_de
 }
 
 lb_result_t
-lb_write_to_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, int size, uint8_t* value)
+lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_t* value)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1399,7 +1409,7 @@ lb_write_to_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uui
         return -LB_ERROR_INVALID_BUS;
     }
 
-    r = lb_get_ble_characteristic_by_uuid(lb_ctx, dev, uuid, &characteristics);
+    r = lb_get_ble_characteristic_by_uuid(dev, uuid, &characteristics);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
         sd_bus_error_free(&error);
@@ -1453,7 +1463,7 @@ lb_write_to_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uui
 }
 
 lb_result_t
-lb_read_from_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uuid, size_t* size, uint8_t** result)
+lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, uint8_t** result)
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -1484,13 +1494,13 @@ lb_read_from_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uu
         return -LB_ERROR_INVALID_BUS;
     }
 
-    if (!_is_ble_device(lb_ctx, dev->device_path)) {
+    if (!_is_ble_device(dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
         sd_bus_error_free(&error);
         return -LB_ERROR_INVALID_DEVICE;
     }
 
-    r = lb_get_ble_characteristic_by_uuid(lb_ctx, dev, uuid, &characteristics);
+    r = lb_get_ble_characteristic_by_uuid(dev, uuid, &characteristics);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
         sd_bus_error_free(&error);
@@ -1521,8 +1531,7 @@ lb_read_from_characteristic(lb_context lb_ctx, lb_bl_device* dev, const char* uu
 }
 
 lb_result_t
-lb_register_characteristic_read_event(lb_context lb_ctx,
-                                      lb_bl_device* dev,
+lb_register_characteristic_read_event(lb_bl_device* dev,
                                       const char* uuid,
                                       sd_bus_message_handler_t callback,
                                       void* userdata)
@@ -1555,7 +1564,7 @@ lb_register_characteristic_read_event(lb_context lb_ctx,
         return -LB_ERROR_INVALID_DEVICE;
     }
 
-    r = lb_get_ble_characteristic_by_uuid(lb_ctx, dev, uuid, &ble_char_new);
+    r = lb_get_ble_characteristic_by_uuid(dev, uuid, &ble_char_new);
     if (r < 0) {
         syslog(LOG_ERR, "%s: could find characteristic: %s", __FUNCTION__, uuid);
         sd_bus_error_free(&error);
