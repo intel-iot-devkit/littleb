@@ -62,13 +62,7 @@ main(int argc, char* argv[])
         exit(r);
     }
 
-    lb_context lb_ctx = lb_context_new();
-    if (lb_ctx == NULL) {
-        fprintf(stderr, "ERROR: lb_context_new\n");
-        exit(r);
-    }
-
-    r = lb_get_bl_devices(lb_ctx, 5);
+    r = lb_get_bl_devices(5);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_bl_devices\n");
         goto cleanup;
@@ -76,25 +70,25 @@ main(int argc, char* argv[])
 
     // search for our specific device named "FIRMATA"
     lb_bl_device* firmata = NULL;
-    r = lb_get_device_by_device_name(lb_ctx, "FIRMATA", &firmata);
+    r = lb_get_device_by_device_name("FIRMATA", &firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: Device FIRMATA not found\n");
         goto cleanup;
     }
 
-    r = lb_connect_device(lb_ctx, firmata);
+    r = lb_connect_device(firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_connect_device\n");
         goto cleanup;
     }
 
-    // r = lb_pair_device(lb_ctx, firmata);
+    // r = lb_pair_device(firmata);
     // if (r < 0) {
     //        fprintf(stderr, "ERROR: lb_pair_device\n");
     //        exit(r);
     //}
 
-    r = lb_get_ble_device_services(lb_ctx, firmata);
+    r = lb_get_ble_device_services(firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_ble_device_services\n");
         goto cleanup;
@@ -118,14 +112,14 @@ main(int argc, char* argv[])
     for (i = 0; i < 10; i++) {
         printf(".");
         fflush(stdout);
-        r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
+        r = lb_write_to_characteristic(firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
         usleep(1000000);
         printf(".");
         fflush(stdout);
-        r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
+        r = lb_write_to_characteristic(firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
@@ -136,7 +130,7 @@ main(int argc, char* argv[])
     const char* userdata_test = "test";
 
     r =
-    lb_register_characteristic_read_event(lb_ctx, firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    lb_register_characteristic_read_event(firmata, "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
                                           test_callback, (void*) userdata_test);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
@@ -147,7 +141,7 @@ main(int argc, char* argv[])
     printf("get_version\n");
     fflush(stdout);
     uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
-    r = lb_write_to_characteristic(lb_ctx, firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
+    r = lb_write_to_characteristic(firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
     }
@@ -157,20 +151,15 @@ main(int argc, char* argv[])
 
 cleanup:
 
-    // r = lb_unpair_device(lb_ctx, firmata);
+    // r = lb_unpair_device(firmata);
     // if (r < 0) {
     //        fprintf(stderr, "ERROR: lb_unpair_device\n");
     //        exit(r);
     //}
 
-    r = lb_disconnect_device(lb_ctx, firmata);
+    r = lb_disconnect_device(firmata);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_disconnect_device\n");
-    }
-
-    r = lb_context_free(lb_ctx);
-    if (r < 0) {
-        fprintf(stderr, "ERROR: lb_context_free\n");
     }
 
     r = lb_destroy();
