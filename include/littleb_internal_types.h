@@ -43,6 +43,8 @@ struct bl_context {
     int devices_size;       /**< count of devices found*/
 };
 
+typedef struct bl_context* lb_context;
+
 typedef struct event_matches_callbacks {
     const char* event;
     sd_bus_message_handler_t* callback;
