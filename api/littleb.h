@@ -70,6 +70,7 @@ typedef struct bl_device {
     const char* device_path;   /**< device path under dbus */
     const char* address;       /**< address of the bluetooth device */
     const char* name;          /**< name of the bluetooth device */
+    int rssi;                  /**< received signal strength indicator of the bluetooth device */
     lb_ble_service** services; /**< list of the service inside the device */
     int services_size;         /**< count of services in the device */
 } lb_bl_device;
@@ -92,12 +93,49 @@ lb_result_t lb_init();
 lb_result_t lb_destroy();
 
 /**
+ * Start device discovery
+ *
+ * @return Result of operation
+ */
+lb_result_t lb_start_device_discovery();
+
+/**
+ * Stop device discovery
+ *
+ * @return Result of operation
+ */
+lb_result_t lb_stop_device_discovery();
+
+/**
  * Populate internal list of bl devices found in a scan of specified length
  *
  * @param seconds to perform device scan
  * @return Result of operation
  */
 lb_result_t lb_get_bl_devices(int seconds);
+
+/**
+ * Populate internal list of bl devices already discovered
+ *
+ * @return Result of operation
+ */
+lb_result_t lb_get_bl_devices_no_scan();
+
+/**
+ * Get number of bl devices found by lb_get_bl_devices()
+ *
+ * @param number of devices
+ * @return Result of operation
+ */
+lb_result_t lb_get_bl_device_count(unsigned int* device_count);
+
+/**
+ * Get device found by lb_get_bl_devices() with specified index
+ *
+ * @param number of devices
+ * @return Result of operation
+ */
+lb_result_t lb_get_bl_device_by_index(unsigned int index, lb_bl_device** dev);
 
 /**
  * Connect to a specific bluetooth device

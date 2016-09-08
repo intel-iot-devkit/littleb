@@ -29,6 +29,7 @@ static pthread_t event_thread;
 static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
 static lb_context lb_ctx = NULL;
+static bool is_event_loop_running = false;
 
 void*
 _run_event_loop(void* arg)
@@ -251,6 +252,29 @@ _get_device_address(const char* device_path)
 
     sd_bus_error_free(&error);
     return (const char*) address;
+}
+
+int
+_get_device_rssi(lb_context lb_ctx, const char* device_path)
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    int r, rssi;
+
+    r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "RSSI",
+                                    &error, 'n', &rssi);
+
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_get_property_string Address on device %s failed with error: %s",
+               __FUNCTION__, device_path, error.message);
+        sd_bus_error_free(&error);
+        return 0;
+    }
+
+    sd_bus_error_free(&error);
+    return rssi;
 }
 
 const char*
@@ -645,51 +669,13 @@ _add_new_device(const char* device_path)
         new_device->address = address;
     }
 
+    new_device->rssi = _get_device_rssi(lb_ctx, device_path);
     new_device->services = NULL;
     new_device->services_size = 0;
 
     // new_device->address = convert_device_path_to_address(device_path);
     lb_ctx->devices[current_index] = new_device;
 
-    return LB_SUCCESS;
-}
-
-lb_result_t
-_scan_devices(int seconds)
-{
-#ifdef DEBUG
-    printf("Method Called: %s\n", __FUNCTION__);
-#endif
-    int r = 0;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-
-    if (!_is_bus_connected(lb_ctx)) {
-        syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
-        sd_bus_error_free(&error);
-        return -LB_ERROR_INVALID_BUS;
-    }
-
-    r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1",
-                           "StartDiscovery", &error, NULL, NULL);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_call_method StartDiscovery failed with error: %s", __FUNCTION__,
-               error.message);
-        sd_bus_error_free(&error);
-        return -LB_ERROR_SD_BUS_CALL_FAIL;
-    }
-
-    sleep(seconds);
-
-    r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1",
-                           "StopDiscovery", &error, NULL, NULL);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_call_method StopDiscovery failed with error: %s", __FUNCTION__,
-               error.message);
-        sd_bus_error_free(&error);
-        return -LB_ERROR_SD_BUS_CALL_FAIL;
-    }
-
-    sd_bus_error_free(&error);
     return LB_SUCCESS;
 }
 
@@ -750,6 +736,10 @@ lb_context_new()
         return -LB_ERROR_INVALID_CONTEXT;
     }
 
+    pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
+    // wait for thread to start
+    sleep(2);
+
     return LB_SUCCESS;
 }
 
@@ -804,6 +794,10 @@ lb_context_free()
     }
     if (lb_ctx->devices != NULL)
         free(lb_ctx->devices);
+
+    pthread_cancel(event_thread);
+    pthread_join(event_thread, NULL);
+
     free(lb_ctx);
 
     lb_ctx = NULL;
@@ -851,8 +845,57 @@ lb_destroy()
     return LB_SUCCESS;
 }
 
+
 lb_result_t
-lb_get_bl_devices(int seconds)
+lb_start_device_discovery()
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    int r = 0;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+
+    if (!_is_bus_connected(lb_ctx)) {
+        syslog(LOG_ERR, "%s: Bus is not opened", __FUNCTION__);
+        sd_bus_error_free(&error);
+        return -LB_ERROR_INVALID_BUS;
+    }
+
+    r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1",
+                           "StartDiscovery", &error, NULL, NULL);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_call_method StartDiscovery failed with error: %s", __FUNCTION__,
+               error.message);
+        sd_bus_error_free(&error);
+        return -LB_ERROR_SD_BUS_CALL_FAIL;
+    }
+
+    sd_bus_error_free(&error);
+    return LB_SUCCESS;
+}
+
+
+lb_result_t
+lb_stop_device_discovery()
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    int r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, "/org/bluez/hci0", "org.bluez.Adapter1",
+                           "StopDiscovery", &error, NULL, NULL);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_call_method StopDiscovery failed with error: %s", __FUNCTION__,
+               error.message);
+        sd_bus_error_free(&error);
+        return -LB_ERROR_SD_BUS_CALL_FAIL;
+    }
+    sd_bus_error_free(&error);
+    return LB_SUCCESS;
+}
+
+lb_result_t
+lb_get_bl_devices_no_scan()
 {
 #ifdef DEBUG
     printf("Method Called: %s\n", __FUNCTION__);
@@ -867,18 +910,14 @@ lb_get_bl_devices(int seconds)
 
     if (lb_ctx->devices != NULL) {
         free(lb_ctx->devices);
+        lb_ctx->devices = NULL;
+        lb_ctx->devices_size = 0;
     }
 
     objects = (const char**) calloc(MAX_OBJECTS, MAX_OBJECTS * sizeof(const char*));
     if (objects == NULL) {
         syslog(LOG_ERR, "%s: Error allocating memory for objects array", __FUNCTION__);
         return -LB_ERROR_MEMEORY_ALLOCATION;
-    }
-
-    r = _scan_devices(seconds);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Error getting root objects", __FUNCTION__);
-        return -LB_ERROR_UNSPECIFIED;
     }
 
     r = _get_root_objects(objects);
@@ -898,7 +937,70 @@ lb_get_bl_devices(int seconds)
     free(objects);
 
     return LB_SUCCESS;
+
 }
+
+
+lb_result_t
+lb_get_bl_devices(int seconds)
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    int r = 0;
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    r = lb_start_device_discovery(lb_ctx);
+    if (r < 0)
+        return r;
+
+    sleep(seconds);
+
+    r = lb_stop_device_discovery(lb_ctx);
+    if (r < 0)
+        return r;
+
+    return lb_get_bl_devices_no_scan(lb_ctx);
+}
+
+lb_result_t
+lb_get_bl_device_count(unsigned int* device_count)
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    *device_count = 0;
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+    *device_count = lb_ctx->devices_size;
+    return LB_SUCCESS;
+}
+
+lb_result_t
+lb_get_bl_device_by_index(unsigned int index, lb_bl_device** dev)
+{
+#ifdef DEBUG
+    printf("Method Called: %s\n", __FUNCTION__);
+#endif
+    *dev = NULL;
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+    if (index >= lb_ctx->devices_size) {
+        syslog(LOG_ERR, "%s: device index out of range", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+    *dev = lb_ctx->devices[index];
+    return LB_SUCCESS;
+}
+
 
 lb_result_t
 lb_connect_device(lb_bl_device* dev)
@@ -1610,10 +1712,6 @@ lb_register_characteristic_read_event(lb_bl_device* dev,
     new_event_pair->callback = &callback;
     new_event_pair->userdata = userdata;
     events_matches_array[current_index] = new_event_pair;
-
-    pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
-    // wait for thread to start
-    sleep(2);
 
     sd_bus_error_free(&error);
     return LB_SUCCESS;
