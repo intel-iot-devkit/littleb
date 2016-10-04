@@ -824,9 +824,6 @@ lb_destroy()
 #endif
     int i, r;
 
-    pthread_cancel(event_thread);
-    pthread_join(event_thread, NULL);
-
     r = sd_event_exit(event, SIGINT);
     if (r < 0) {
         syslog(LOG_ERR, "%s: failed to stop event loop", __FUNCTION__);
