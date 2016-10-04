@@ -71,28 +71,22 @@ main(int argc, char* argv[])
         exit(r);
     }
 
-    lb_context lb_ctx = lb_context_new();
-    if (lb_ctx == NULL) {
-        fprintf(stderr, "ERROR: lb_context_new\n");
-        exit(r);
-    }
-
     // Discovery
-    r = lb_start_device_discovery(lb_ctx);
+    r = lb_start_device_discovery();
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_bl_devices\n");
         goto cleanup;
     }
     printf("Started device discovery\n");
     sleep(5);
-    r = lb_get_bl_devices_no_scan(lb_ctx);
+    r = lb_get_bl_devices_no_scan();
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_bl_devices_no_scan\n");
         goto cleanup;
     }
-    r = lb_stop_device_discovery(lb_ctx);
+    r = lb_stop_device_discovery();
 
-    r = lb_get_bl_device_count(lb_ctx, &num_devices);
+    r = lb_get_bl_device_count(&num_devices);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_bl_device_count\n");
         goto cleanup;
@@ -104,17 +98,17 @@ main(int argc, char* argv[])
     lb_bl_device* dev;
     lb_ble_service* service;
     for (i = 0; i < num_devices && !found_esp_device; i++) {
-        r = lb_get_bl_device_by_index(lb_ctx, i, &dev);
+        r = lb_get_bl_device_by_index(i, &dev);
         if (r == LB_SUCCESS) {
             if (strcmp(dev->name, "null") && dev->rssi > 0) {
                 printf("Checking \"%s\" %s...", dev->name, dev->address);
                 fflush(stdout);
                 printf("\n");
 
-                r = lb_connect_device(lb_ctx, dev);
+                r = lb_connect_device(dev);
                 if (r == LB_SUCCESS) {
                     fprintf(stderr, "Connected\n");
-                    r = lb_get_ble_device_services(lb_ctx, dev);
+                    r = lb_get_ble_device_services(dev);
                     // r = lb_get_ble_service_by_uuid(lb_ctx, dev, BT_UUID_ESS, &service);
                     if (r == LB_SUCCESS) {
                         fprintf(stderr, "Found %d services\n", dev->services_size);
@@ -143,11 +137,6 @@ main(int argc, char* argv[])
     }
 
 cleanup:
-    r = lb_context_free(lb_ctx);
-    if (r < 0) {
-        fprintf(stderr, "ERROR: lb_context_free\n");
-    }
-
     r = lb_destroy();
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_destroy\n");
