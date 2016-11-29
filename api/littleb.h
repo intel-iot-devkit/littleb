@@ -70,10 +70,26 @@ typedef struct bl_device {
     const char* device_path;   /**< device path under dbus */
     const char* address;       /**< address of the bluetooth device */
     const char* name;          /**< name of the bluetooth device */
+    bool paired;               /**< is device paired */
+    bool trusted;              /**< is device trusted */
+    bool connected;            /**< deviced connected */
     lb_ble_service** services; /**< list of the service inside the device */
     int services_size;         /**< count of services in the device */
 } lb_bl_device;
 
+//@todo document
+enum {
+  LB_DEVICE_PAIR_EVENT = 0,
+  LB_DEVICE_UNPAIR_EVENT,
+  LB_DEVICE_TRUSTED_EVENT,
+  LB_DEVICE_UNTRUSTED_EVENT,
+  LB_DEVICE_CONNECT_EVENT,
+  LB_DEVICE_DISCONNECT_EVENT,
+  LB_OTHER_EVENT
+} typedef lb_property_change_notification;
+
+
+typedef int (*property_change_callback_func)(lb_property_change_notification, void*, sd_bus_error*);
 
 /**
  * Initialize littleb.
@@ -257,6 +273,18 @@ lb_result_t lb_register_characteristic_read_event(lb_bl_device* dev,
                                                   void* userdata);
 
 /**
+ * Register a callback function for device state (connected/paired/trusted) change event
+ *
+ * @param dev BLE device to get notifications for
+ * @param callback function to be called when state change
+ * @param userdata to pass in the callback function
+ * @return Result of operation
+ */
+lb_result_t lb_register_change_state_event(lb_bl_device* dev,
+                                           property_change_callback_func callback,
+                                           void* userdata);
+
+/**
  * Special function to parse uart tx line buffer
  *
  * @param message sd_bus_message to prase the buffer array from
@@ -265,6 +293,18 @@ lb_result_t lb_register_characteristic_read_event(lb_bl_device* dev,
  * @return Result of operation
  */
 lb_result_t lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size);
+
+/**
+ * Function to parse properties changes message
+ *
+ * @param message sd_bus_message to prase the buffer array from
+ * @param property_name name of property changed (output)
+ * @param value property new value (output)
+ * @return Result of operation
+ */
+lb_result_t lb_parse_properties_changed_message(sd_bus_message* message, char **property_name, bool *value);
+
+
 
 #ifdef __cplusplus
 }
