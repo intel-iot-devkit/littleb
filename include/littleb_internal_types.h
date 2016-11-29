@@ -37,6 +37,10 @@ static const char* BLUEZ_DEVICE = "org.bluez.Device1";
 static const char* BLUEZ_GATT_SERVICE = "org.bluez.GattService1";
 static const char* BLUEZ_GATT_CHARACTERISTICS = "org.bluez.GattCharacteristic1";
 
+static const char* PAIRED_PROPERTY_NAME = "Paired";
+static const char* TRUSTED_PROPERTY_NAME = "Trusted";
+static const char* CONNECTED_PROPERTY_NAME = "Connected";
+
 struct bl_context {
     sd_bus* bus;            /**< system bus to be used */
     lb_bl_device** devices; /**< list of the devices found in a scan */
@@ -50,6 +54,12 @@ typedef struct event_matches_callbacks {
     sd_bus_message_handler_t* callback;
     void* userdata;
 } event_matches_callbacks;
+
+typedef struct {
+    property_change_callback_func callback;
+    void* data;
+} user_notification_callback;
+
 
 #ifdef __cplusplus
 }
