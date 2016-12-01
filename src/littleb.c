@@ -22,6 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "littleb.h"
+#include "littleb_internal.h"
 #include "littleb_internal_types.h"
 
 static sd_event* event = NULL;
@@ -29,6 +30,49 @@ static pthread_t event_thread;
 static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
 static lb_context lb_ctx = NULL;
+
+
+static int
+_property_change_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
+{
+    // @todo complete
+    // the idea is that we process the msg ourself and call the user function with the right flag
+    //
+    int r;
+    bool value;
+    char* name;
+    int notification = LB_OTHER_EVENT;
+
+    r = _lb_parse_properties_changed_message(message, &name, &value);
+
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Failed to parse sd bus message", __FUNCTION__);
+        return r;
+    }
+
+    printf("In %s property_name: %s value: %d \n", __FUNCTION__, name, value);
+
+    if (strcmp(name, PAIRED_PROPERTY_NAME) == 0) {
+        printf("Property equals %s\n", PAIRED_PROPERTY_NAME);
+        notification = value ? LB_DEVICE_PAIR_EVENT : LB_DEVICE_UNPAIR_EVENT;
+    } else if (strcmp(name, TRUSTED_PROPERTY_NAME) == 0) {
+        printf("Property equals %s\n", TRUSTED_PROPERTY_NAME);
+        notification = value ? LB_DEVICE_TRUSTED_EVENT : LB_DEVICE_UNTRUSTED_EVENT;
+    }
+    if (strcmp(name, CONNECTED_PROPERTY_NAME) == 0) {
+        printf("Property equals %s\n", CONNECTED_PROPERTY_NAME);
+        notification = value ? LB_DEVICE_CONNECT_EVENT : LB_DEVICE_DISCONNECT_EVENT;
+    }
+
+    user_notification_callback* callback_data = (user_notification_callback*) userdata;
+
+    // extract user callback
+    if (callback_data != NULL && callback_data->callback != NULL) {
+        (*callback_data->callback)(notification, callback_data->data);
+    }
+
+    return r;
+}
 
 void*
 _run_event_loop(void* arg)
@@ -385,44 +429,47 @@ _is_ble_characteristic(const char* service_path)
 }
 
 bool
-_is_service_primary(const char* service_path)
+_get_boolean_property_value(const char* device_path, const char* interface, const char* property_name)
 {
     sd_bus_error error = SD_BUS_ERROR_NULL;
     int r;
-    bool primary;
+    bool val;
 
-    r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, service_path, "org.bluez.GattService1",
-                                    "Primary", &error, 'b', &primary);
+    r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, device_path, interface, property_name,
+                                    &error, 'b', &val);
     if (r < 0) {
-        syslog(LOG_ERR,
-               "%s: sd_bus_get_property_trivial Primary on service %s failed with error: %s",
-               __FUNCTION__, service_path, error.message);
+        syslog(LOG_ERR, "%s: sd_bus_get_property_trivial %s on device %s failed with error: %s",
+               property_name, __FUNCTION__, device_path, error.message);
         sd_bus_error_free(&error);
         return NULL;
     }
 
     sd_bus_error_free(&error);
-    return primary;
+    return val;
+}
+
+bool
+_is_service_primary(const char* service_path)
+{
+    return _get_boolean_property_value(service_path, BLUEZ_GATT_SERVICE, "Primary");
 }
 
 bool
 _is_device_paired(const char* device_path)
 {
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    int r;
-    bool paired;
+    return _get_boolean_property_value(device_path, BLUEZ_DEVICE, PAIRED_PROPERTY_NAME);
+}
 
-    r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Paired",
-                                    &error, 'b', &paired);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_get_property_trivial Paired on device %s failed with error: %s",
-               __FUNCTION__, device_path, error.message);
-        sd_bus_error_free(&error);
-        return NULL;
-    }
+bool
+_is_device_connected(const char* device_path)
+{
+    return _get_boolean_property_value(device_path, BLUEZ_DEVICE, CONNECTED_PROPERTY_NAME);
+}
 
-    sd_bus_error_free(&error);
-    return paired;
+bool
+_is_device_trusted(const char* device_path)
+{
+    return _get_boolean_property_value(device_path, BLUEZ_DEVICE, TRUSTED_PROPERTY_NAME);
 }
 
 lb_result_t
@@ -1266,6 +1313,27 @@ lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_re
     return -LB_ERROR_UNSPECIFIED;
 }
 
+
+lb_result_t
+lb_get_device_properties(const char* address, lb_bl_properties* bl_properties_ret)
+/*
+lb_result_t
+lb_get_device_properties(const char* address, bool* trusted, bool* paired, bool* connected)
+*/
+{
+    int r;
+
+    if (address == NULL) {
+        syslog(LOG_ERR, "%s: address is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    bl_properties_ret->trusted = _is_device_trusted(address);
+    bl_properties_ret->paired = _is_device_paired(address);
+    bl_properties_ret->connected = _is_bus_connected(address);
+}
+
+
 lb_result_t
 lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_t* value)
 {
@@ -1416,10 +1484,7 @@ lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, u
 }
 
 lb_result_t
-lb_register_characteristic_read_event(lb_bl_device* dev,
-                                      const char* uuid,
-                                      sd_bus_message_handler_t callback,
-                                      void* userdata)
+lb_register_characteristic_read_event(lb_bl_device* dev, const char* uuid, sd_bus_message_handler_t callback, void* userdata)
 {
     int r;
     sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -1493,13 +1558,96 @@ lb_register_characteristic_read_event(lb_bl_device* dev,
     new_event_pair->userdata = userdata;
     events_matches_array[current_index] = new_event_pair;
 
-    pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
-    // wait for thread to start
-    sleep(2);
+    if (event_thread) {
+        pthread_cancel(event_thread);
+        pthread_join(event_thread, NULL);
+    } else {
+        pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
+        // wait for thread to start
+        sleep(2);
+    }
+
 
     sd_bus_error_free(&error);
     return LB_SUCCESS;
 }
+
+lb_result_t
+lb_register_change_state_event(lb_bl_device* dev, property_change_callback_func callback, void* userdata)
+{
+    //   int r;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    char match[100];
+    memset(&match[0], 0, 100);
+
+
+    if (lb_ctx == NULL) {
+        syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    if (dev == NULL) {
+        syslog(LOG_ERR, "%s: bl_device is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    if (callback == NULL) {
+        syslog(LOG_ERR, "%s: callback is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_DEVICE;
+    }
+
+    snprintf(match, 99, "path='%s', member='PropertiesChanged'", dev->device_path);
+
+    int current_index = event_arr_size;
+    if (event_arr_size == 0 || events_matches_array == NULL) {
+        events_matches_array = (event_matches_callbacks**) malloc(sizeof(event_matches_callbacks*));
+        if (events_matches_array == NULL) {
+            syslog(LOG_ERR, "%s: Error allocating memory for events_matches_array", __FUNCTION__);
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
+        event_arr_size++;
+    } else {
+        event_arr_size++;
+        events_matches_array =
+        realloc(events_matches_array, event_arr_size * sizeof(event_matches_callbacks*));
+        if (events_matches_array == NULL) {
+            syslog(LOG_ERR, "%s: Error reallocating memory for events_matches_array", __FUNCTION__);
+            return -LB_ERROR_MEMEORY_ALLOCATION;
+        }
+    }
+
+    event_matches_callbacks* new_event_pair =
+    (event_matches_callbacks*) malloc(sizeof(event_matches_callbacks));
+    if (new_event_pair == NULL) {
+        syslog(LOG_ERR, "%s: Error reallocating memory for events_matches_array", __FUNCTION__);
+        return -LB_ERROR_MEMEORY_ALLOCATION;
+    }
+    new_event_pair->event = match;
+
+
+    user_notification_callback* internal_callback_data =
+    (user_notification_callback*) malloc(sizeof(user_notification_callback));
+    internal_callback_data->callback = callback;
+    internal_callback_data->data = userdata;
+    new_event_pair->userdata = internal_callback_data;
+    sd_bus_message_handler_t internal_callback = _property_change_callback;
+    new_event_pair->callback = &internal_callback;
+    events_matches_array[current_index] = new_event_pair;
+
+
+    if (event_thread) {
+        pthread_cancel(event_thread);
+        pthread_join(event_thread, NULL);
+    } else {
+        pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
+        // wait for thread to start
+        sleep(2);
+    }
+
+    sd_bus_error_free(&error);
+    return LB_SUCCESS;
+}
+
 
 lb_result_t
 lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size)
@@ -1564,6 +1712,84 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
 
     if (r < 0) {
         syslog(LOG_ERR, "%s: sd_bus_message_enter_container sv failed with error: %s", __FUNCTION__,
+               strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_exit_container(message);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_exit_container {sv} failed with error: %s",
+               __FUNCTION__, strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    return LB_SUCCESS;
+}
+
+//@todo cut short using goto
+lb_result_t
+_lb_parse_properties_changed_message(sd_bus_message* message, char** property_name, bool* value)
+{
+    int r;
+    char* err_details = NULL;
+
+    if (message == NULL) {
+        syslog(LOG_ERR, "%s: message is null", __FUNCTION__);
+        return -LB_ERROR_INVALID_CONTEXT;
+    }
+
+    r = sd_bus_message_skip(message, "s");
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_enter_container(message, 'a', "{sv}");
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_enter_container {sv} failed with error: %s",
+               __FUNCTION__, strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    // we expect only one entry in the array
+    r = sd_bus_message_enter_container(message, 'e', "sv");
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_enter_container sv failed with error: %s", __FUNCTION__,
+               strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_read_basic(message, SD_BUS_TYPE_STRING, property_name);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Failed to read string value with error: %s", __FUNCTION__, strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_enter_container(message, 'v', "b");
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_enter_container v failed with error: %s", __FUNCTION__,
+               strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    bool b;
+    r = sd_bus_message_read_basic(message, SD_BUS_TYPE_BOOLEAN, value);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: Failed to read boolean value with error: %s", __FUNCTION__, strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+    //*value = b;
+
+    r = sd_bus_message_exit_container(message);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_exit_container v failed with error: %s", __FUNCTION__,
+               strerror(-r));
+        return -LB_ERROR_UNSPECIFIED;
+    }
+
+    r = sd_bus_message_exit_container(message);
+    if (r < 0) {
+        syslog(LOG_ERR, "%s: sd_bus_message_exit_container sv failed with error: %s", __FUNCTION__,
                strerror(-r));
         return -LB_ERROR_UNSPECIFIED;
     }

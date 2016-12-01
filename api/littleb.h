@@ -74,6 +74,30 @@ typedef struct bl_device {
     int services_size;         /**< count of services in the device */
 } lb_bl_device;
 
+typedef struct bl_properties {
+    bool paired;               /**< is device paired */
+    bool trusted;              /**< is device trusted */
+    bool connected;            /**< deviced connected */
+} lb_bl_properties;
+
+/**
+ * Enum used for callback, once registered to get notifications about specific device state change
+ *  lb_bl_property_change_notification indicates which event triggered the callback
+ */
+typedef enum bi_property_change_notification {
+  LB_DEVICE_PAIR_EVENT = 0,    
+  LB_DEVICE_UNPAIR_EVENT = 1 ,
+  LB_DEVICE_TRUSTED_EVENT = 2,
+  LB_DEVICE_UNTRUSTED_EVENT = 3,
+  LB_DEVICE_CONNECT_EVENT = 4,
+  LB_DEVICE_DISCONNECT_EVENT = 5,
+  LB_OTHER_EVENT = 6
+} lb_bl_property_change_notification;
+
+/*
+* callback type to be used in lb_register_change_state_event
+*/
+typedef int (*property_change_callback_func)(lb_bl_property_change_notification, void* userdata);
 
 /**
  * Initialize littleb.
@@ -219,6 +243,15 @@ lb_result_t lb_get_device_by_device_name(const char* name, lb_bl_device** bl_dev
 lb_result_t lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_ret);
 
 /**
+ * Get bluetooth device by searching for specific address
+ *
+ * @param address to search for
+ * @param bl_properties_ret to populate with device properties (status)
+ * @return Result of operation
+ */
+lb_result_t lb_get_device_properties(const char* address, lb_bl_properties* bl_properties_ret);
+
+/**
  * Write to a specific BLE device characteristic using it's uuid
  *
  * @param dev BLE device to search the characteristic in
@@ -257,6 +290,18 @@ lb_result_t lb_register_characteristic_read_event(lb_bl_device* dev,
                                                   void* userdata);
 
 /**
+ * Register a callback function for device state (connected/paired/trusted) change event
+ *
+ * @param dev BLE device to get notifications for
+ * @param callback function to be called when state change
+ * @param userdata to pass in the callback function
+ * @return Result of operation
+ */
+lb_result_t lb_register_change_state_event(lb_bl_device* dev,
+                                           property_change_callback_func callback,
+                                           void* userdata);
+
+/**
  * Special function to parse uart tx line buffer
  *
  * @param message sd_bus_message to prase the buffer array from
@@ -265,6 +310,7 @@ lb_result_t lb_register_characteristic_read_event(lb_bl_device* dev,
  * @return Result of operation
  */
 lb_result_t lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size);
+
 
 #ifdef __cplusplus
 }
