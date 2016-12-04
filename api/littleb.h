@@ -85,13 +85,13 @@ typedef struct bl_properties {
  *  lb_bl_property_change_notification indicates which event triggered the callback
  */
 typedef enum bi_property_change_notification {
-  LB_DEVICE_PAIR_EVENT = 0,    
-  LB_DEVICE_UNPAIR_EVENT = 1 ,
-  LB_DEVICE_TRUSTED_EVENT = 2,
-  LB_DEVICE_UNTRUSTED_EVENT = 3,
-  LB_DEVICE_CONNECT_EVENT = 4,
-  LB_DEVICE_DISCONNECT_EVENT = 5,
-  LB_OTHER_EVENT = 6
+  LB_DEVICE_PAIR_EVENT = 0,        /**< device paired */    
+  LB_DEVICE_UNPAIR_EVENT = 1 ,     /**< device unpaired */    
+  LB_DEVICE_TRUSTED_EVENT = 2,     /**< device trusted */    
+  LB_DEVICE_UNTRUSTED_EVENT = 3,   /**< device not trusted */    
+  LB_DEVICE_CONNECT_EVENT = 4,     /**< device connected */    
+  LB_DEVICE_DISCONNECT_EVENT = 5,  /**< device disconnected */    
+  LB_OTHER_EVENT = 6               /**< state change not todo with options listed above */    
 } lb_bl_property_change_notification;
 
 /*

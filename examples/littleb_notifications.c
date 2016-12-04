@@ -27,9 +27,9 @@
 #include <stdlib.h>
 
 static int
-test1_callback(lb_bl_property_change_notification input, void* userdata)
+test_callback(lb_bl_property_change_notification input, void* userdata)
 {
-    printf("input : %d\n", input);
+    printf("Flag recieved : %d\n", input);
     const char* userdata_test = (const char*) userdata;
     printf("callback called with userdata: %s\n", userdata_test);
     return 0;
@@ -39,6 +39,7 @@ int
 main(int argc, char* argv[])
 {
     int i = 0, j = 0, r = 0;
+    lb_bl_properties firmata_properties;
 
     r = lb_init();
     if (r < 0) {
@@ -52,7 +53,6 @@ main(int argc, char* argv[])
         goto cleanup;
     }
 
-    // search for our specific device named "FIRMATA"
     lb_bl_device* firmata = NULL;
     r = lb_get_device_by_device_name("FIRMATA", &firmata);
     if (r < 0) {
@@ -60,7 +60,13 @@ main(int argc, char* argv[])
         goto cleanup;
     }
 
-    r = lb_register_change_state_event(firmata, test1_callback, NULL);
+    lb_get_device_properties(firmata->address, &firmata_properties);
+
+    printf("Firmata state: connected: %d paired: %d truested: %d\n", firmata_properties.connected,
+           firmata_properties.paired, firmata_properties.trusted);
+
+
+    r = lb_register_change_state_event(firmata, test_callback, NULL);
     if (r < 0) {
         printf("failed to register change event\n");
     }
@@ -76,20 +82,10 @@ main(int argc, char* argv[])
         fprintf(stderr, "ERROR: lb_disconnect_device\n");
         goto cleanup;
     }
-/*
-r = lb_unpair_device(firmata);
-if (r < 0) {
-    fprintf(stderr, "ERROR: lb_unpair_device\n");
-    goto cleanup;
-}
 
-r = lb_pair_device(firmata);
-if (r < 0) {
-    fprintf(stderr, "ERROR: lb_pair_device\n");
-    goto cleanup;
-}
-*/
-
+    printf("waiting for callbacks\n");
+    fflush(stdout);
+    sleep(2);
 
 cleanup:
 

@@ -28,16 +28,21 @@
 extern "C" {
 #endif
 
+#include "littleb_internal_types.h"
+
 
 /**
  * Function to parse properties changes message
  *
  * @param message sd_bus_message to prase the buffer array from
- * @param property_name name of property changed (output)
- * @param value property new value (output)
+ * @param properties_change_array array containing details of properties changes, a messege can
+ * contain more then one properties (output)
+ * @param array_count number of bl_property_data in the array (output)
  * @return Result of operation
  */
-lb_result_t _lb_parse_properties_changed_message(sd_bus_message* message, char** property_name, bool* value);
+lb_result_t _lb_parse_properties_changed_message(sd_bus_message* message,
+                                                 bl_property_data (*properties_change_array)[MSG_MAX_PROPERTIES],
+                                                 int* array_count);
 
 
 #ifdef __cplusplus

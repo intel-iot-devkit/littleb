@@ -39,36 +39,36 @@ _property_change_callback(sd_bus_message* message, void* userdata, sd_bus_error*
     // the idea is that we process the msg ourself and call the user function with the right flag
     //
     int r;
-    bool value;
-    char* name;
     int notification = LB_OTHER_EVENT;
+    int array_count = 0;
+    bl_property_data properties[MSG_MAX_PROPERTIES];
 
-    r = _lb_parse_properties_changed_message(message, &name, &value);
+    r = _lb_parse_properties_changed_message(message, &properties, &array_count);
 
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to parse sd bus message", __FUNCTION__);
         return r;
     }
 
-    printf("In %s property_name: %s value: %d \n", __FUNCTION__, name, value);
+    for (int i = 0; i < array_count; ++i) {
+        if (strcmp(properties[i].name, PAIRED_PROPERTY_NAME) == 0) {
+            notification = properties[i].value ? LB_DEVICE_PAIR_EVENT : LB_DEVICE_UNPAIR_EVENT;
+        } else if (strcmp(properties[i].name, TRUSTED_PROPERTY_NAME) == 0) {
+            notification = properties[i].value ? LB_DEVICE_TRUSTED_EVENT : LB_DEVICE_UNTRUSTED_EVENT;
+        }
+        if (strcmp(properties[i].name, CONNECTED_PROPERTY_NAME) == 0) {
+            notification = properties[i].value ? LB_DEVICE_CONNECT_EVENT : LB_DEVICE_DISCONNECT_EVENT;
+        }
 
-    if (strcmp(name, PAIRED_PROPERTY_NAME) == 0) {
-        printf("Property equals %s\n", PAIRED_PROPERTY_NAME);
-        notification = value ? LB_DEVICE_PAIR_EVENT : LB_DEVICE_UNPAIR_EVENT;
-    } else if (strcmp(name, TRUSTED_PROPERTY_NAME) == 0) {
-        printf("Property equals %s\n", TRUSTED_PROPERTY_NAME);
-        notification = value ? LB_DEVICE_TRUSTED_EVENT : LB_DEVICE_UNTRUSTED_EVENT;
-    }
-    if (strcmp(name, CONNECTED_PROPERTY_NAME) == 0) {
-        printf("Property equals %s\n", CONNECTED_PROPERTY_NAME);
-        notification = value ? LB_DEVICE_CONNECT_EVENT : LB_DEVICE_DISCONNECT_EVENT;
-    }
+        // send notification only for propertis under monitor
+        if (notification != LB_OTHER_EVENT) {
+            bl_user_notification_callback* callback_data = (bl_user_notification_callback*) userdata;
 
-    user_notification_callback* callback_data = (user_notification_callback*) userdata;
-
-    // extract user callback
-    if (callback_data != NULL && callback_data->callback != NULL) {
-        (*callback_data->callback)(notification, callback_data->data);
+            // extract user callback and triggr it
+            if (callback_data != NULL && callback_data->callback != NULL) {
+                (*callback_data->callback)(notification, callback_data->data);
+            }
+        }
     }
 
     return r;
@@ -1316,10 +1316,6 @@ lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_re
 
 lb_result_t
 lb_get_device_properties(const char* address, lb_bl_properties* bl_properties_ret)
-/*
-lb_result_t
-lb_get_device_properties(const char* address, bool* trusted, bool* paired, bool* connected)
-*/
 {
     int r;
 
@@ -1561,11 +1557,10 @@ lb_register_characteristic_read_event(lb_bl_device* dev, const char* uuid, sd_bu
     if (event_thread) {
         pthread_cancel(event_thread);
         pthread_join(event_thread, NULL);
-    } else {
-        pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
-        // wait for thread to start
-        sleep(2);
     }
+
+    pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
+    // wait for thread to start        sleep(2);
 
 
     sd_bus_error_free(&error);
@@ -1625,8 +1620,8 @@ lb_register_change_state_event(lb_bl_device* dev, property_change_callback_func 
     new_event_pair->event = match;
 
 
-    user_notification_callback* internal_callback_data =
-    (user_notification_callback*) malloc(sizeof(user_notification_callback));
+    bl_user_notification_callback* internal_callback_data =
+    (bl_user_notification_callback*) malloc(sizeof(bl_user_notification_callback));
     internal_callback_data->callback = callback;
     internal_callback_data->data = userdata;
     new_event_pair->userdata = internal_callback_data;
@@ -1638,11 +1633,11 @@ lb_register_change_state_event(lb_bl_device* dev, property_change_callback_func 
     if (event_thread) {
         pthread_cancel(event_thread);
         pthread_join(event_thread, NULL);
-    } else {
-        pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
-        // wait for thread to start
-        sleep(2);
+        //@todo do we need the else???
     }
+    pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
+    // wait for thread to start
+    sleep(2);
 
     sd_bus_error_free(&error);
     return LB_SUCCESS;
@@ -1726,12 +1721,16 @@ lb_parse_uart_service_message(sd_bus_message* message, const void** result, size
     return LB_SUCCESS;
 }
 
-//@todo cut short using goto
 lb_result_t
-_lb_parse_properties_changed_message(sd_bus_message* message, char** property_name, bool* value)
+_lb_parse_properties_changed_message(sd_bus_message* message,
+                                     bl_property_data (*properties_change_array)[MSG_MAX_PROPERTIES],
+                                     int* array_count)
 {
     int r;
-    char* err_details = NULL;
+    int index = 0;
+    char type = 0;
+    const char* signature = NULL;
+    bl_property_data current_property;
 
     if (message == NULL) {
         syslog(LOG_ERR, "%s: message is null", __FUNCTION__);
@@ -1739,65 +1738,70 @@ _lb_parse_properties_changed_message(sd_bus_message* message, char** property_na
     }
 
     r = sd_bus_message_skip(message, "s");
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_skip failed with error: %s", __FUNCTION__, strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
+    if (r < 0)
+        goto fail;
 
     r = sd_bus_message_enter_container(message, 'a', "{sv}");
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_enter_container {sv} failed with error: %s",
-               __FUNCTION__, strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
+    if (r < 0)
+        goto fail;
+
+    // in this loop properties name and value are extracted from the message
+    // number of properties to extract is limited by the array size
+    while ((index < MSG_MAX_PROPERTIES) &&
+           (r = sd_bus_message_enter_container(message, 'e', "sv")) > 0) {
+
+        if (r < 0)
+            goto fail;
+
+        // extracting property name
+        r = sd_bus_message_read_basic(message, SD_BUS_TYPE_STRING, &current_property.name);
+        if (r < 0)
+            goto fail;
+
+        r = sd_bus_message_peek_type(message, &type, &signature);
+        if (r < 0)
+            goto fail;
+
+        // all properties being monitored are saved as boolean: connected, paired etc.
+        // validating the value type before extracting it
+        if (type == SD_BUS_TYPE_VARIANT && strcmp(signature, "b") == 0) {
+
+            r = sd_bus_message_enter_container(message, SD_BUS_TYPE_VARIANT, "b");
+            if (r < 0)
+                goto fail;
+
+            // extracting property value
+            r = sd_bus_message_read_basic(message, SD_BUS_TYPE_BOOLEAN, &current_property.value);
+            if (r < 0)
+                goto fail;
+
+            r = sd_bus_message_exit_container(message);
+            if (r < 0)
+                goto fail;
+
+            // coping curret entry to output
+            memcpy(&((*properties_change_array)[index]), &current_property, sizeof(bl_property_data));
+            index++;
+        }
+
+        r = sd_bus_message_exit_container(message);
+        if (r < 0) {
+            goto fail;
+        }
     }
 
-    // we expect only one entry in the array
-    r = sd_bus_message_enter_container(message, 'e', "sv");
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_enter_container sv failed with error: %s", __FUNCTION__,
-               strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
 
-    r = sd_bus_message_read_basic(message, SD_BUS_TYPE_STRING, property_name);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed to read string value with error: %s", __FUNCTION__, strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
-
-    r = sd_bus_message_enter_container(message, 'v', "b");
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_enter_container v failed with error: %s", __FUNCTION__,
-               strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
-
-    bool b;
-    r = sd_bus_message_read_basic(message, SD_BUS_TYPE_BOOLEAN, value);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: Failed to read boolean value with error: %s", __FUNCTION__, strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
-    //*value = b;
+    *array_count = index;
+    if (r < 0)
+        goto fail;
 
     r = sd_bus_message_exit_container(message);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_exit_container v failed with error: %s", __FUNCTION__,
-               strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
+    if (r < 0)
+        goto fail;
 
-    r = sd_bus_message_exit_container(message);
+fail:
     if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_exit_container sv failed with error: %s", __FUNCTION__,
-               strerror(-r));
-        return -LB_ERROR_UNSPECIFIED;
-    }
-
-    r = sd_bus_message_exit_container(message);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_message_exit_container {sv} failed with error: %s",
-               __FUNCTION__, strerror(-r));
+        syslog(LOG_ERR, "%s: parsing sd_bus_message failed with error: %s", __FUNCTION__, strerror(-r));
         return -LB_ERROR_UNSPECIFIED;
     }
 

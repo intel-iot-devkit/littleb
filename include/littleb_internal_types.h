@@ -31,6 +31,9 @@ extern "C" {
 
 #define MAX_LEN 256
 #define MAX_OBJECTS 256
+#define MSG_MAX_PROPERTIES \
+    10 // max number of entries supported when parsing sd_bus_message, if there are more they won't
+       // be handled for notifications
 
 static const char* BLUEZ_DEST = "org.bluez";
 static const char* BLUEZ_DEVICE = "org.bluez.Device1";
@@ -58,7 +61,12 @@ typedef struct event_matches_callbacks {
 typedef struct {
     property_change_callback_func callback;
     void* data;
-} user_notification_callback;
+} bl_user_notification_callback;
+
+typedef struct {
+    char* name;
+    bool value;
+} bl_property_data;
 
 
 #ifdef __cplusplus
