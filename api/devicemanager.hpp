@@ -24,6 +24,52 @@
 
 #pragma once
 
+#include "littlebtypes.hpp"
 
-#include "device.h"
-#include "devicemanager.h"
+
+namespace littleb
+{
+	class DeviceManager
+	{
+	public:		
+
+		static DeviceManager& getInstance()
+		{
+			static DeviceManager instance;
+			return instance;
+		}
+
+		~DeviceManager()
+		{
+			lb_destroy();
+		} 
+
+		
+		Result getBlDevices(int seconds)
+		{
+			return (Result)lb_get_bl_devices(seconds);
+		}
+		
+
+		Result getDeviceByName(std::string name, Device* out)
+		{
+			bl_device *device;
+			Result res = (Result)lb_get_device_by_device_name(name.c_str(), &device);
+			out = new Device(device);
+		}
+
+
+    	Result ScanDevices(int seconds = 5)
+		{
+    		return (Result)lb_get_bl_devices(seconds);
+        }
+
+	private:
+		DeviceManager()	
+		{
+			if(lb_init() != LB_SUCCESS) {
+				 throw std::invalid_argument("Error initialising DeviceManager");
+			}
+		}	
+	};
+}
