@@ -29,47 +29,81 @@
 
 namespace littleb
 {
-	class DeviceManager
-	{
-	public:		
+/**
+ * @brief DeviceManager is an API to littleb
+ * Provid access to available bl devices
+ */
+class DeviceManager
+{
+  public:
+    static DeviceManager&
+    getInstance()
+    {
+        static DeviceManager instance;
+        return instance;
+    }
 
-		static DeviceManager& getInstance()
-		{
-			static DeviceManager instance;
-			return instance;
-		}
+    /**
+     * Destroy littleb
+     *
+     */
+    ~DeviceManager()
+    {
+        lb_destroy();
+    }
 
-		~DeviceManager()
-		{
-			lb_destroy();
-		} 
+    /**
+    * Populate internal list of devices found in a scan of specified length
+    *
+    * @param seconds to perform device scan
+    * @return Result of operation
+    */
+    Result
+    getBlDevices(int seconds)
+    {
+        return (Result) lb_get_bl_devices(seconds);
+    }
 
-		
-		Result getBlDevices(int seconds)
-		{
-			return (Result)lb_get_bl_devices(seconds);
-		}
-		
+    /**
+     * Get bluetooth device by searching for specific name
+     *
+     * Will return the first found device with the name specified
+     *
+     * @param name to search for
+     * @param Device to populate with the found device
+     * @return Result of operation
+     */
+    Result
+    getDeviceByName(std::string name, Device* out)
+    {
+        bl_device* device;
+        Result res = (Result) lb_get_device_by_device_name(name.c_str(), &device);
+        out = new Device(device);
+    }
 
-		Result getDeviceByName(std::string name, Device* out)
-		{
-			bl_device *device;
-			Result res = (Result)lb_get_device_by_device_name(name.c_str(), &device);
-			out = new Device(device);
-		}
+    /**
+     * Populate internal list of bl devices found in a scan of specified length
+     *
+     * @param seconds to perform device scan
+     * @return Result of operation
+     */
+    Result
+    ScanBlDevices(int seconds = 5)
+    {
+        return (Result) lb_get_bl_devices(seconds);
+    }
 
-
-    	Result ScanDevices(int seconds = 5)
-		{
-    		return (Result)lb_get_bl_devices(seconds);
+  private:
+    /**
+     * Initialize littleb.
+     *
+     * Set event and event loop configuration
+     */
+    DeviceManager()
+    {
+        if (lb_init() != LB_SUCCESS) {
+            throw std::invalid_argument("Error initialising DeviceManager");
         }
-
-	private:
-		DeviceManager()	
-		{
-			if(lb_init() != LB_SUCCESS) {
-				 throw std::invalid_argument("Error initialising DeviceManager");
-			}
-		}	
-	};
+    }
+};
 }

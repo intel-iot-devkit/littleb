@@ -30,84 +30,124 @@
 
 namespace littleb
 {
-    /**
-     * LB return codes
-     */
-    typedef enum {
-        SUCCESS = 0,                       /**< Expected response */
-        ERROR_FEATURE_NOT_IMPLEMENTED = 1, /**< Feature TODO */
-        ERROR_FEATURE_NOT_SUPPORTED = 2,   /**< Feature not supported by HW */
-        ERROR_INVALID_CONTEXT = 3,         /**< Not a littleb context*/
-        ERROR_INVALID_DEVICE = 4,          /**< Not a BL or BLE device */
-        ERROR_INVALID_BUS = 5,             /**< sd bus invalid */
-        ERROR_NO_RESOURCES = 6,            /**< No resource of that type avail */
-        ERROR_MEMEORY_ALLOCATION = 7,      /**< Memory allocation fail */
-        ERROR_SD_BUS_CALL_FAIL = 8,        /**< sd_bus call failure */
+/**
+ * LB return codes
+ */
+typedef enum {
+    SUCCESS = 0,                       /**< Expected response */
+    ERROR_FEATURE_NOT_IMPLEMENTED = 1, /**< Feature TODO */
+    ERROR_FEATURE_NOT_SUPPORTED = 2,   /**< Feature not supported by HW */
+    ERROR_INVALID_CONTEXT = 3,         /**< Not a littleb context*/
+    ERROR_INVALID_DEVICE = 4,          /**< Not a BL or BLE device */
+    ERROR_INVALID_BUS = 5,             /**< sd bus invalid */
+    ERROR_NO_RESOURCES = 6,            /**< No resource of that type avail */
+    ERROR_MEMEORY_ALLOCATION = 7,      /**< Memory allocation fail */
+    ERROR_SD_BUS_CALL_FAIL = 8,        /**< sd_bus call failure */
 
-        ERROR_UNSPECIFIED = 99 /**< Unknown Error */
-    } Result;
+    ERROR_UNSPECIFIED = 99 /**< Unknown Error */
+} Result;
 
-    class BleCharactersitic
+
+/**
+ * @brief BleCharactersitic represents BLE characteristics
+ */
+class BleCharactersitic
+{
+  public:
+    BleCharactersitic() : m_path(""), m_uuid("")
     {
-    public:
-        BleCharactersitic()
-        : m_path("")  , m_uuid("")
-        {}
+    }
 
-        BleCharactersitic(std::string path, std::string uuid)
-        : m_path(path)  , m_uuid(uuid)
-        {}
+    BleCharactersitic(std::string path, std::string uuid) : m_path(path), m_uuid(uuid)
+    {
+    }
 
-        BleCharactersitic(lb_ble_char& structChar)
-        {
-            m_path = structChar.char_path;
-            m_uuid = structChar.uuid;
+    BleCharactersitic(lb_ble_char& structChar)
+    {
+        m_path = structChar.char_path;
+        m_uuid = structChar.uuid;
+    }
+
+    ~BleCharactersitic()
+    {
+    }
+
+    std::string
+    getPath()
+    {
+        return m_path;
+    }
+    std::string
+    getUuid()
+    {
+        return m_uuid;
+    }
+
+  private:
+    std::string m_path;
+    std::string m_uuid;
+};
+
+
+/**
+ * @brief BleService represents BLE service
+ */
+class BleService
+{
+  public:
+    BleService()
+    {
+    }
+
+    ~BleService()
+    {
+        while (!m_characteristics.empty()) {
+            // triggering the vector objects desructor
+            m_characteristics.pop_back();
         }
+    }
 
-        ~BleCharactersitic(){}
-
-        std::string getPath() {return m_path;}
-        std::string getUuid() {return m_uuid;}
-
-        void setPath(std::string path) {m_path = path;}
-        void setUuid(std::string uuid) {m_uuid = uuid;}
-
-    private:
-       std::string m_path;
-       std::string m_uuid;
-    };
-
-    class BleService
+    bool
+    init(ble_service& bleService)
     {
-    public:
-        BleService() {}
-        ~BleService() {} //@todo
-        
-        bool initFromStruct(ble_service& bleService)
-        {
-            bool initOk = true;
-            path = bleService.service_path;
-            uuid = bleService.uuid;
-            primary = bleService.primary;
+        bool initOk = true;
+        m_path = bleService.service_path;
+        m_uuid = bleService.uuid;
+        m_primary = bleService.primary;
 
-            for (int i = 0; i < bleService.characteristics_size; ++i)
-            {
-                if (bleService.characteristics[i] != NULL) {
-                    BleCharactersitic* characteristic = new BleCharactersitic(*characteristics[i]);
-                    characteristics.push_back(characteristic);
-                } else {
-                    initOk = false;
-                    // @todo dodgy data
-                }          
+        for (int i = 0; i < bleService.characteristics_size; ++i) {
+            if (bleService.characteristics[i] != NULL) {
+                BleCharactersitic* characteristic = new BleCharactersitic(*bleService.characteristics[i]);
+                m_characteristics.push_back(characteristic);
+            } else {
+                initOk = false;
             }
-
-            return initOk;      
         }
-    
-    private:
-        bool primary;
-        std::string path;
-        std::string uuid;
-        std::vector<BleCharactersitic*> characteristics ;     
-    };
+
+        return initOk;
+    }
+
+    std::string
+    getPath()
+    {
+        return m_path;
+    }
+    std::string
+    getUuid()
+    {
+        return m_uuid;
+    }
+    bool
+    getPrimary()
+    {
+        return m_primary;
+    }
+
+
+  private:
+    bool m_primary;
+    std::string m_path;
+    std::string m_uuid;
+    std::vector<BleCharactersitic*> m_characteristics;
+};
 }
