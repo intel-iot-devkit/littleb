@@ -24,6 +24,5 @@
 
 #pragma once
 
-
-#include "device.h"
-#include "devicemanager.h"
+#include "device.hpp"
+#include "devicemanager.hpp"

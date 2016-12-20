@@ -1327,6 +1327,7 @@ lb_get_device_properties(const char* address, lb_bl_properties* bl_properties_re
     bl_properties_ret->trusted = _is_device_trusted(address);
     bl_properties_ret->paired = _is_device_paired(address);
     bl_properties_ret->connected = _is_bus_connected(address);
+    return -LB_SUCCESS;
 }
 
 

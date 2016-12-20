@@ -43,10 +43,17 @@ class Device
      *
      * DeviceManager uses it to return device
      * Cannot call an empty constructor
+     *
+     * @throws std::invalid_argument in case of null input
      */
-    Device(bl_device* device)
+    Device(lb_bl_device* device)
     {
-        memcpy(&m_device, device, sizeof(device));
+        if (device == NULL) {
+            throw std::invalid_argument("Error initialising DeviceManager");
+        } else {
+            //@todo copy fields separately
+            memcpy(&m_device, device, sizeof(lb_bl_device));
+        }
     }
 
     /**
@@ -59,45 +66,53 @@ class Device
     /**
      * Connect device
      *
-     * @return Result of operation
-     */
-    Result
+     * @throws std::runtime_error when lb_connect_device() exit with an error
+    */
+    void
     connect()
     {
-        return (Result) lb_connect_device(&m_device);
+        if (lb_connect_device(&m_device) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device connect call failed");
+        }
     }
 
     /**
      * Disconnect device
      *
-     * @return Result of operation
+     * @throws std::runtime_error when lb_disconnect_device() exit with an error
      */
-    Result
+    void
     disconnect()
     {
-        return (Result) lb_disconnect_device(&m_device);
+        if (lb_disconnect_device(&m_device) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device disconnect call failed");
+        }
     }
 
     /**
      * Pair device
      *
-     * @return Result of operation
+     * @throws std::runtime_error when lb_pair_device() exit with an error
      */
-    Result
+    void
     pair()
     {
-        return (Result) lb_pair_device(&m_device);
+        if (lb_pair_device(&m_device) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device pair call failed");
+        }
     }
 
     /**
      * Cancel pairing
      *
-     * @return Result of operation
+     * @throws std::runtime_error when lb_unpair_device() exit with an error
      */
-    Result
+    void
     unpair()
     {
-        return (Result) lb_unpair_device(&m_device);
+        if (lb_unpair_device(&m_device) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device unpair call failed");
+        }
     }
 
     /**
@@ -105,6 +120,7 @@ class Device
      *
      * @param characteristic_path to search for
      * @param BleCharactersitic to populate with characteristic found
+     * @throws std::runtime_error when get characteristic call exit with an error
      */
     void
     getBleCharacteristicByCharacteristicPath(std::string path, BleCharactersitic* out)
@@ -126,6 +142,7 @@ class Device
      *
      * @param uuid to search for
      *  to populate with characteristic found
+     * @throws std::runtime_error when get characteristic call exit with an error
      */
     void
     getBleCharacteristicByUuid(std::string uuid, BleCharactersitic* charecteristic)
@@ -146,7 +163,8 @@ class Device
      *
      * @param service path to search for
      * @param BleService to populate with service found
-     * @return Result of operation
+     * @throws std::runtime_error when get service call exit with an error or returned a null
+     * service
      */
     void
     getBleServiceByServicePath(std::string path, BleService* out)
@@ -169,6 +187,8 @@ class Device
      *
      * @param uuid to search for
      * @param BleService to populate with service found
+     * @throws std::runtime_error when get service call exit with an error or returned a null
+     * service
      */
     void
     getBleServiceByUuid(std::string uuid, BleService* out)
@@ -188,24 +208,15 @@ class Device
 
     /**
      * Populate the BLE device with it's services
+     * @throws std::runtime_error when get device services call exit with an error
      *
-     * @return Result of operation
      */
-    Result
+    void
     getBleDeviceServices()
     {
-        return (Result) lb_get_ble_device_services(&m_device);
-    }
-
-    /**
-     * Populate the BLE device with it's services
-     *
-     * @return Result of operation
-     */
-    Result
-    updateBleDeviceServices()
-    {
-        return (Result) lb_get_ble_device_services(&m_device);
+        if (lb_get_ble_device_services(&m_device) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device getBleDeviceServices call failed");
+        }
     }
 
     /**
@@ -214,12 +225,14 @@ class Device
      * @param uuid of the characteristic to write to
      * @param size of the uint8 array to be written
      * @param the array of byte buffer to write to the characteristic
-     * @return Result of operation
+     * @throws std::runtime_error when lb_write_to_characteristic() call exit with an error
      */
-    Result
+    void
     writeToCharacteristic(std::string uuid, int size, uint8_t* value)
     {
-        return (Result) lb_write_to_characteristic(&m_device, uuid.c_str(), size, value);
+        if (lb_write_to_characteristic(&m_device, uuid.c_str(), size, value)) {
+            throw std::runtime_error("littleb device writeToCharacteristic call failed");
+        }
     }
 
     /**
@@ -228,14 +241,37 @@ class Device
      * @param uuid of the characteristic to read from
      * @param size of the uint8 array that was read
      * @param the array of byte buffer that was read
-     * @return Result of operation
+     * @throws std::runtime_error when lb_read_from_characteristic() call exit with an error
      */
-    Result
+    void
     readFromCharacteristic(std::string uuid, size_t* size, uint8_t** result)
     {
-        return (Result) lb_read_from_characteristic(&m_device, uuid.c_str(), size, result);
+        if (lb_read_from_characteristic(&m_device, uuid.c_str(), size, result)) {
+            throw std::runtime_error("littleb device readFromCharacteristic call failed");
+        }
     }
 
+    /**
+     * Get device properties
+     *
+     * @throws std::runtime_error when lb_get_device_properties() call exit with an error
+     * @return device properties
+     */
+    BlProperties
+    getDeviceProperties()
+    {
+        lb_bl_properties tempProps;
+
+        if (lb_get_device_properties(m_device.address, &tempProps) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device getDeviceProperties call failed");
+        }
+
+        BlProperties outProps;
+        outProps.trusted = tempProps.trusted;
+        outProps.paired = tempProps.paired;
+        outProps.connected = tempProps.connected;
+        return outProps;
+    }
 
   private:
     lb_bl_device m_device;

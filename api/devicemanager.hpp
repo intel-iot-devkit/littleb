@@ -55,13 +55,15 @@ class DeviceManager
     /**
     * Populate internal list of devices found in a scan of specified length
     *
-    * @param seconds to perform device scan
-    * @return Result of operation
+    * @param seconds to perform device scan, deafult value set to 5
+    * @throws std::runtime_error when lb_get_bl_devices() exit with an error
     */
-    Result
-    getBlDevices(int seconds)
+    void
+    getBlDevices(int seconds = 5)
     {
-        return (Result) lb_get_bl_devices(seconds);
+        if (lb_get_bl_devices(seconds) != LB_SUCCESS) {
+            throw std::runtime_error("littleb getBlDevices call failed");
+        }
     }
 
     /**
@@ -70,27 +72,19 @@ class DeviceManager
      * Will return the first found device with the name specified
      *
      * @param name to search for
-     * @param Device to populate with the found device
-     * @return Result of operation
+     * @throws std::runtime_error when get device call exit with an error
+     * @return device found
      */
-    Result
-    getDeviceByName(std::string name, Device* out)
+    Device*
+    getDeviceByName(std::string name)
     {
         bl_device* device;
-        Result res = (Result) lb_get_device_by_device_name(name.c_str(), &device);
-        out = new Device(device);
-    }
-
-    /**
-     * Populate internal list of bl devices found in a scan of specified length
-     *
-     * @param seconds to perform device scan
-     * @return Result of operation
-     */
-    Result
-    ScanBlDevices(int seconds = 5)
-    {
-        return (Result) lb_get_bl_devices(seconds);
+        if (lb_get_device_by_device_name(name.c_str(), &device) != LB_SUCCESS) {
+            std::ostringstream oss;
+            oss << "littleb lb_get_device_by_device_name for " << name << " failed";
+            throw std::runtime_error(oss.str());
+        }
+        return new Device(device);
     }
 
   private:
@@ -98,11 +92,12 @@ class DeviceManager
      * Initialize littleb.
      *
      * Set event and event loop configuration
+     * @throws std::runtime_error when littleb init call exit with an error
      */
     DeviceManager()
     {
         if (lb_init() != LB_SUCCESS) {
-            throw std::invalid_argument("Error initialising DeviceManager");
+            throw std::runtime_error("Error initialising DeviceManager");
         }
     }
 };

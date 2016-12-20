@@ -243,9 +243,9 @@ lb_result_t lb_get_device_by_device_name(const char* name, lb_bl_device** bl_dev
 lb_result_t lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_ret);
 
 /**
- * Get bluetooth device by searching for specific address
+ * Get device properties, identidy device using address
  *
- * @param address to search for
+ * @param device address
  * @param bl_properties_ret to populate with device properties (status)
  * @return Result of operation
  */

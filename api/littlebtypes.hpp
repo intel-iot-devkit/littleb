@@ -47,6 +47,14 @@ typedef enum {
     ERROR_UNSPECIFIED = 99 /**< Unknown Error */
 } Result;
 
+/**
+ * Device key properties
+ */
+struct BlProperties {
+    bool paired;    /**< is device paired */
+    bool trusted;   /**< is device trusted */
+    bool connected; /**< deviced connected */
+};
 
 /**
  * @brief BleCharactersitic represents BLE characteristics
