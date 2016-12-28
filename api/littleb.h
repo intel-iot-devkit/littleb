@@ -84,7 +84,7 @@ typedef struct bl_properties {
  * Enum used for callback, once registered to get notifications about specific device state change
  *  lb_bl_property_change_notification indicates which event triggered the callback
  */
-typedef enum bi_property_change_notification {
+typedef enum bl_property_change_notification {
   LB_DEVICE_PAIR_EVENT = 0,        /**< device paired */    
   LB_DEVICE_UNPAIR_EVENT = 1 ,     /**< device unpaired */    
   LB_DEVICE_TRUSTED_EVENT = 2,     /**< device trusted */    
