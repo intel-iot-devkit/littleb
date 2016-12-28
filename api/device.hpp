@@ -27,7 +27,6 @@
 #include "littlebtypes.hpp"
 #include <sstream>
 #include <stdexcept>
-#include <vector>
 
 namespace littleb
 {
@@ -271,6 +270,123 @@ class Device
         outProps.paired = tempProps.paired;
         outProps.connected = tempProps.connected;
         return outProps;
+    }
+
+    /**
+     * Register a callback function for an event of characteristic value change
+     *
+     * @param uuid of the characteristic to read from
+     * @param callback function to be called when char value changed
+     *        typedef int (*sd_bus_message_handler_t)(sd_bus *bus, int ret, sd_bus_message *m, void
+     * *userdata);
+     * @param userdata to pass in the callback function
+     *
+     * @throws std::runtime_error when lb_register_characteristic_read_event exit with an error
+     */
+    void
+    registerCharacteristicReadEvent(std::string uuid, sd_bus_message_handler_t callback, void* userdata)
+    {
+        if (lb_register_characteristic_read_event(&m_device, uuid.c_str(), callback, userdata) != LB_SUCCESS) {
+            std::ostringstream oss;
+            oss << "littleb registerCharacteristicReadEvent for uuid " << uuid << " failed";
+            throw std::runtime_error(oss.str());
+        }
+    }
+
+    /**
+     * Register a callback function for device state (connected/paired/trusted) change event
+     *
+     * @param callback function to be called when state change
+     * @param userdata to pass in the callback function
+     *
+     * @throws std::runtime_error when lb_register_change_state_event exit with an error
+     */
+    void
+    registerChangeStateEvent(propertyChangeCallbackFunc callback, void* userdata)
+    {
+        if (lb_register_change_state_event(&m_device, (property_change_callback_func) callback,
+                                           userdata) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device registerChangeStateEvent call failed");
+        }
+    }
+
+    /**
+     * Special function to parse uart tx line buffer
+     *
+     * @param message sd_bus_message to prase the buffer array from
+     * @param result buffer to accommodate the result
+     * @return Result of operation
+     *
+     * @throws std::runtime_error when lb_register_change_state_event exit with an error
+     */
+    static uint8_t*
+    parseUartServiceMessage(sd_bus_message* message)
+    {
+        size_t size = 0;
+        uint8_t* result = NULL;
+        uint8_t* outResult = NULL;
+
+        if (lb_parse_uart_service_message(message, (const void**) &result, &size) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device parseUartServiceMessage call failed");
+        }
+
+        if (size > 0) {
+            outResult = new uint8_t[size];
+
+            for (size_t i = 0; i < size; i++) {
+                outResult[i] = result[i];
+            }
+        }
+        return outResult;
+    }
+
+    /**
+     * Get device name
+     */
+    std::string
+    getName()
+    {
+        return m_device.name;
+    }
+
+    /**
+     * Get device address
+    */
+    std::string
+    getAddress()
+    {
+        return m_device.address;
+    }
+
+    /**
+     * Get number of services
+    */
+    int
+    getNumOfServices()
+    {
+        return m_device.services_size;
+    }
+
+    /**
+     * Get device services
+     *
+     * @return array of services, if there are none return null
+    */
+    BleService*
+    getServices()
+    {
+        //@ todo fix to return vector instead of array + remove getNumOfServices() func
+        BleService* services = NULL;
+
+        if (m_device.services_size > 0) {
+            services = new BleService[m_device.services_size];
+
+            for (int i = 0; i < m_device.services_size; ++i) {
+                services[i].init(*m_device.services[i]);
+            }
+        }
+
+        return services;
     }
 
   private:

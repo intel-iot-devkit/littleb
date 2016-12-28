@@ -57,6 +57,27 @@ struct BlProperties {
 };
 
 /**
+ * Enum used for callback, once registered to get notifications about specific device state change
+ *  lb_bl_property_change_notification indicates which event triggered the callback
+ */
+enum BlPropertyChangeNotification {
+    DEVICE_PAIR_EVENT = 0,       /**< device paired */
+    DEVICE_UNPAIR_EVENT = 1,     /**< device unpaired */
+    DEVICE_TRUSTED_EVENT = 2,    /**< device trusted */
+    DEVICE_UNTRUSTED_EVENT = 3,  /**< device not trusted */
+    DEVICE_CONNECT_EVENT = 4,    /**< device connected */
+    DEVICE_DISCONNECT_EVENT = 5, /**< device disconnected */
+    OTHER_EVENT = 6              /**< state change not todo with options listed above */
+};
+
+
+/*
+* callback type to be used in lb_register_change_state_event
+*/
+typedef int (*propertyChangeCallbackFunc)(BlPropertyChangeNotification, void* userdata);
+
+
+/**
  * @brief BleCharactersitic represents BLE characteristics
  */
 class BleCharactersitic
@@ -149,6 +170,12 @@ class BleService
     getPrimary()
     {
         return m_primary;
+    }
+
+    const std::vector<BleCharactersitic*>&
+    getCharacteristics()
+    {
+        return m_characteristics;
     }
 
 
