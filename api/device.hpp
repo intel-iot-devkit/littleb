@@ -40,7 +40,7 @@ class Device
     /**
      * Constructor
      *
-     * DeviceManager uses it to return device
+     * Constructor being used by DeviceManager generate and return device
      * Cannot call an empty constructor
      *
      * @throws std::invalid_argument in case of null input
@@ -48,7 +48,7 @@ class Device
     Device(lb_bl_device* device)
     {
         if (device == NULL) {
-            throw std::invalid_argument("Error initialising DeviceManager");
+            throw std::invalid_argument("Error initialising Device");
         } else {
             //@todo copy fields separately
             memcpy(&m_device, device, sizeof(lb_bl_device));
