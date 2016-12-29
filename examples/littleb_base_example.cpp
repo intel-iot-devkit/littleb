@@ -24,7 +24,7 @@
 #include "../api/littleb.hpp"
 
 /**
-* @todo complete and document, replace printf with cout   
+* @todo complete and document, replace printf with cout
 */
 using namespace littleb;
 using namespace std;
@@ -32,8 +32,6 @@ using namespace std;
 static int
 test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
 {
-
-    printf("**** In callback ****\n");
     uint8_t* result = NULL;
     const char* userdata_test = (const char*) userdata;
 
@@ -62,7 +60,7 @@ int
 main(int argc, char* argv[])
 {
     try {
-        DeviceManager devManager = DeviceManager::getInstance();
+        DeviceManager& devManager = DeviceManager::getInstance();
         devManager.getBlDevices();
 
         Device* firmata = devManager.getDeviceByName(string("FIRMATA"));
@@ -113,11 +111,9 @@ main(int argc, char* argv[])
         }
         printf("\n");
 
-
-        // @todo fix bug
-        // const char* userdata_test = "test";
-        // firmata->registerCharacteristicReadEvent("6e400003-b5a3-f393-e0a9-e50e24dcca9e",
-        // test_callback, (void*) userdata_test);
+        const char* userdata_test = "test";
+        firmata->registerCharacteristicReadEvent("6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+                                                 test_callback, (void*) userdata_test);
 
         printf("get_version\n");
         fflush(stdout);

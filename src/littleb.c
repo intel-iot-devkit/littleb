@@ -26,7 +26,7 @@
 #include "littleb_internal_types.h"
 
 static sd_event* event = NULL;
-static pthread_t event_thread;
+static pthread_t event_thread = (pthread_t)NULL;
 static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
 static lb_context lb_ctx = NULL;
@@ -819,6 +819,7 @@ lb_destroy()
             free(events_matches_array[i]);
         }
         free(events_matches_array);
+        event_arr_size = 0;
     }
 
     lb_context_free();
@@ -1554,14 +1555,14 @@ lb_register_characteristic_read_event(lb_bl_device* dev, const char* uuid, sd_bu
     new_event_pair->callback = &callback;
     new_event_pair->userdata = userdata;
     events_matches_array[current_index] = new_event_pair;
-
     if (event_thread) {
         pthread_cancel(event_thread);
         pthread_join(event_thread, NULL);
     }
 
     pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
-    // wait for thread to start        sleep(2);
+    // wait for thread to start        
+    sleep(2);
 
 
     sd_bus_error_free(&error);

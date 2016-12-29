@@ -100,5 +100,13 @@ class DeviceManager
             throw std::runtime_error("Error initialising DeviceManager");
         }
     }
+
+    /**
+     * Copy constructor - to prevent getting an object without using getInstance()
+     *
+     */
+    DeviceManager(DeviceManager& device)
+    {
+    }
 };
 }
