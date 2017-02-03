@@ -26,7 +26,7 @@
 #include "littleb_internal_types.h"
 
 static sd_event* event = NULL;
-static pthread_t event_thread = (pthread_t)NULL;
+static pthread_t event_thread = (pthread_t) NULL;
 static event_matches_callbacks** events_matches_array = NULL;
 static uint event_arr_size = 0;
 static lb_context lb_ctx = NULL;
@@ -1162,18 +1162,18 @@ lb_get_ble_characteristic_by_uuid(lb_bl_device* dev, const char* uuid, lb_ble_ch
         syslog(LOG_ERR, "%s: uuid is null", __FUNCTION__);
         return -LB_ERROR_INVALID_DEVICE;
     }
-    
+
     if (!_is_ble_device(dev->device_path)) {
         syslog(LOG_ERR, "%s: not a ble device", __FUNCTION__);
         return -LB_ERROR_INVALID_DEVICE;
     }
-    
+
     for (i = 0; i < dev->services_size; i++) {
         for (j = 0; j < dev->services[i]->characteristics_size; j++) {
             if (strncmp(uuid, dev->services[i]->characteristics[j]->uuid, strlen(uuid)) == 0) {
                 *ble_characteristic_ret = dev->services[i]->characteristics[j];
                 return LB_SUCCESS;
-            }     
+            }
         }
     }
     return -LB_ERROR_UNSPECIFIED;
@@ -1450,14 +1450,14 @@ lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, u
         sd_bus_error_free(&error);
         return -LB_ERROR_INVALID_DEVICE;
     }
-    
+
     r = lb_get_ble_characteristic_by_uuid(dev, uuid, &characteristics);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to get characteristic", __FUNCTION__);
         sd_bus_error_free(&error);
         return -LB_ERROR_UNSPECIFIED;
     }
-    
+
     r = sd_bus_call_method(lb_ctx->bus, BLUEZ_DEST, characteristics->char_path,
                            BLUEZ_GATT_CHARACTERISTICS, "ReadValue", &error, &reply, "a{sv}", NULL);
     if (r < 0) {
@@ -1467,7 +1467,7 @@ lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, u
         sd_bus_message_unref(reply);
         return -LB_ERROR_SD_BUS_CALL_FAIL;
     }
-    
+
     r = sd_bus_message_read_array(reply, 'y', (const void**) result, size);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to read byte array message", __FUNCTION__);
@@ -1475,7 +1475,7 @@ lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, u
         sd_bus_message_unref(reply);
         return -LB_ERROR_UNSPECIFIED;
     }
-    
+
     sd_bus_error_free(&error);
     sd_bus_message_unref(reply);
     return LB_SUCCESS;
@@ -1561,7 +1561,7 @@ lb_register_characteristic_read_event(lb_bl_device* dev, const char* uuid, sd_bu
     }
 
     pthread_create(&event_thread, NULL, _run_event_loop, &(lb_ctx->bus));
-    // wait for thread to start        
+    // wait for thread to start
     sleep(2);
 
 
@@ -1647,6 +1647,13 @@ lb_register_change_state_event(lb_bl_device* dev, property_change_callback_func 
 
 lb_result_t
 lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size)
+{
+    return lb_parse_dbus_message(message, result, size);
+}
+
+
+lb_result_t
+lb_parse_dbus_message(sd_bus_message* message, const void** result, size_t* size)
 {
     int r;
 
