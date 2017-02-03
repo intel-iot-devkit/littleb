@@ -311,23 +311,37 @@ class Device
     }
 
     /**
-     * Special function to parse uart tx line buffer
+     * Special function to parse uart to line buffer, basicly a wrapper function to
+     * parseDBusMessage
      *
      * @param message sd_bus_message to prase the buffer array from
-     * @param result buffer to accommodate the result
-     * @return Result of operation
+     * @return result buffer
      *
      * @throws std::runtime_error when lb_register_change_state_event exit with an error
      */
     static uint8_t*
     parseUartServiceMessage(sd_bus_message* message)
     {
+        return parseDBusMessage(message);
+    }
+
+    /**
+     * Function call that extract a buffer array from sd_bus_messages
+     * Designed for messages of type: "sa{sv}as"
+     *
+     * @param message sd_bus_message to prase the buffer array from
+     * @return result buffer
+     * @throws std::runtime_error when lb_register_change_state_event exit with an error
+      */
+    static uint8_t*
+    parseDBusMessage(sd_bus_message* message)
+    {
         size_t size = 0;
         uint8_t* result = NULL;
         uint8_t* outResult = NULL;
 
-        if (lb_parse_uart_service_message(message, (const void**) &result, &size) != LB_SUCCESS) {
-            throw std::runtime_error("littleb device parseUartServiceMessage call failed");
+        if (lb_parse_dbus_message(message, (const void**) &result, &size) != LB_SUCCESS) {
+            throw std::runtime_error("littleb device lb_parse_dbus_message call failed");
         }
 
         if (size > 0) {
@@ -375,7 +389,7 @@ class Device
     BleService*
     getServices()
     {
-        //@ todo fix to return vector instead of array + remove getNumOfServices() func
+        //@todo fix to return vector instead of array + remove getNumOfServices() func
         BleService* services = NULL;
 
         if (m_device.services_size > 0) {

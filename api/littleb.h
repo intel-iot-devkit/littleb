@@ -305,7 +305,7 @@ lb_result_t lb_parse_uart_service_message(sd_bus_message* message, const void** 
 
 
 /**
- * Function call that extract a string array from sd_bus_messages
+ * Function call that extract buffer array from sd_bus_messages
  * Designed for messages of type: "sa{sv}as"
  *
  * @param message sd_bus_message to prase the buffer array from

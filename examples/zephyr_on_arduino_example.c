@@ -25,9 +25,13 @@
 #include "littleb.h"
 #include <stdio.h>
 
-
+/*
+    This sample shows how to connect with Arduino device running Zephyr
+    In order to run this successfully please load an Arduino device with peripheral_hr Zephyr sample
+*/
 static const int MAX_CONNECT_ATTEMPTS = 5;
 static const char* MESURMENT_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
+static const char* DEVICE_NAME = "Zephyr Heartrate Sensor";
 
 static int
 heartrate_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
@@ -71,14 +75,14 @@ main(int argc, char* argv[])
 
     lb_bl_device* zepher = NULL;
 
-    r = lb_get_device_by_device_name("Zephyr Heartrate Sensor", &zepher);
+    r = lb_get_device_by_device_name(DEVICE_NAME, &zepher);
     if (r < 0) {
-        fprintf(stderr, "ERROR: Zephyr Heartrate Sensor was not found\n");
+        fprintf(stderr, "ERROR: %s was not found\n", DEVICE_NAME);
         goto cleanup;
     }
 
     // allow few attempts when trying to connect to device
-    printf("Conncting to Zephyr Heartrate Sensor..");
+    printf("Conncting to %s..", DEVICE_NAME);
     do {
         r = lb_connect_device(zepher);
         printf(".");
@@ -89,7 +93,7 @@ main(int argc, char* argv[])
     fflush(stdout);
 
     if (r < 0) {
-        fprintf(stderr, "ERROR: failed to connect to Zephyr Heartrate Sensor\n");
+        fprintf(stderr, "ERROR: failed to connect to %s\n", DEVICE_NAME);
         goto cleanup;
     }
 

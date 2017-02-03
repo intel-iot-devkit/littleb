@@ -25,11 +25,8 @@
 #include "littleb.h"
 #include <stdio.h>
 
-/*
-    @todo
-    remove magic numbers
-    add sensors specific functions: enable/disable, start notifications etc.
-*/
+static const char* IR_TEMP_DATA_UUID = "f000aa01-0451-4000-b000-000000000000";
+static const char* IR_TEMP_CONFIG_UUID = "f000aa02-0451-4000-b000-000000000000";
 
 static int
 temp_sensor_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
@@ -41,8 +38,7 @@ temp_sensor_callback(sd_bus_message* message, void* userdata, sd_bus_error* erro
     size_t size = 0;
     uint8_t* result = NULL;
 
-    // @todo rename and modify lb_parse_uart_service_message for a more generic use
-    r = lb_parse_uart_service_message(message, (const void**) &result, &size);
+    r = lb_parse_dbus_message(message, (const void**) &result, &size);
 
     if (r < 0 || size < 4) {
         fprintf(stderr, "ERROR: couldn't parse message\n");
@@ -120,22 +116,15 @@ main(int argc, char* argv[])
     uint8_t flagOn = 0x01;
 
     printf("\nEnable IR Temperature Sensor\n");
-    r = lb_write_to_characteristic(sensorTag, "f000aa02-0451-4000-b000-000000000000", 1, &flagOn);
+    r = lb_write_to_characteristic(sensorTag, IR_TEMP_CONFIG_UUID, 1, &flagOn);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
     }
 
-    // reading value from sensor directly
-    // r = lb_read_from_characteristic(sensorTag, "f000aa01-0451-4000-b000-000000000000", &size,
-    // &result);
-    // if (r < 0) {
-    //    fprintf(stderr, "ERROR: lb_read_from_characteristic\n");
-    // }
-
     // enable sensor notifications
     const char* userdata = "temperature sensor test";
-    r = lb_register_characteristic_read_event(sensorTag, "f000aa01-0451-4000-b000-000000000000",
-                                              temp_sensor_callback, (void*) userdata);
+    r = lb_register_characteristic_read_event(sensorTag, IR_TEMP_DATA_UUID, temp_sensor_callback,
+                                              (void*) userdata);
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_register_characteristic_read_event\n");
     }
