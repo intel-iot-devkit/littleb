@@ -31,7 +31,12 @@
 */
 static const int MAX_CONNECT_ATTEMPTS = 5;
 static const char* MESURMENT_UUID = "00002a37-0000-1000-8000-00805f9b34fb";
+static const char* BODY_LOCATION_UUID = "00002a38-0000-1000-8000-00805f9b34fb";
 static const char* DEVICE_NAME = "Zephyr Heartrate Sensor";
+
+const char* SENSOR_BODY_LOCATIONS[] = { "Other", "Chest",    "Wrist", "Finger",
+                                        "Hand",  "Ear Lobe", "Foot" };
+const int MAX_LOCATIONS = 7;
 
 static int
 heartrate_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
@@ -56,8 +61,8 @@ heartrate_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
     return 0;
 }
 
-int
 
+int
 main(int argc, char* argv[])
 {
     int i = 0, r = 0;
@@ -107,6 +112,19 @@ main(int argc, char* argv[])
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_get_ble_device_services\n");
         goto cleanup;
+    }
+
+    size_t size;
+    uint8_t* results;
+    r = lb_read_from_characteristic(zepher, BODY_LOCATION_UUID, &size, &results);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: Failed to read sensor body location\n");
+        goto cleanup;
+    }
+
+    if (size > 0 && (results[0] >= 0 && results[0] < MAX_LOCATIONS)) {
+        printf("Sensor location: %s\n", SENSOR_BODY_LOCATIONS[results[0]]);
+        fflush(stdout);
     }
 
     const char* userdata = "";
