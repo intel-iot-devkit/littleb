@@ -35,9 +35,6 @@ static lb_context lb_ctx = NULL;
 static int
 _property_change_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
 {
-    // @todo complete
-    // the idea is that we process the msg ourself and call the user function with the right flag
-    //
     int r;
     int notification = LB_OTHER_EVENT;
     int array_count = 0;

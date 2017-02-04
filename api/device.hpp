@@ -50,7 +50,6 @@ class Device
         if (device == NULL) {
             throw std::invalid_argument("Error initialising Device");
         } else {
-            //@todo copy fields separately
             memcpy(&m_device, device, sizeof(lb_bl_device));
         }
     }
