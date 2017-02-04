@@ -57,6 +57,7 @@ heartrate_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
 }
 
 int
+
 main(int argc, char* argv[])
 {
     int i = 0, r = 0;
@@ -83,9 +84,12 @@ main(int argc, char* argv[])
 
     // allow few attempts when trying to connect to device
     printf("Conncting to %s..", DEVICE_NAME);
+    fflush(stdout);
+
     do {
         r = lb_connect_device(zepher);
         printf(".");
+        fflush(stdout);
         i++;
     } while (r < 0 && i < MAX_CONNECT_ATTEMPTS);
 
