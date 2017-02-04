@@ -1,6 +1,6 @@
 
 # littleb use examples
-you can find here few basic examples that use littleb to communicate to sevral IOT devices 
+you can find here few basic examples that use littleb to communicate to several IOT devices 
 and demonstrate simple use cases for it.
 
 ## hello_littleb
@@ -11,17 +11,17 @@ It is looking for a bluetooth device named "FIRMATA" and will connect to it and 
 ## littleb_notifications_example
 Uses Arduino 101 flashed with StandardFirmataBLE
 It is looking for a bluetooth device named "FIRMATA" and will connect to it 
-register to recive notification on properties changes on device, like disconnect etc.
+register to receive notification on properties changes on device, like disconnect etc.
 
 ## littleb_sensor_tag_example
 Uses Texas Instruments sensor tag
 Looking for a bluetooth device named "CC2650 SensorTag"
-Reads tempreture from the device and displays it 
+Reads temperature from the device and displays it 
 
 ## littleb_heartrate_example
 Uses Arduino flashed with Zephyr sample peripheral_hr
 (https://www.zephyrproject.org/doc/samples/bluetooth/peripheral_hr/README.html)
-instruction as to how to flush an Arduino device with Zephyer sample can be found here:
+instruction as to how to flush an Arduino device with Zephyr sample can be found here:
 (https://www.zephyrproject.org/doc/getting_started/getting_started.html)
 in the below link, make sure you read the "Flashing the Bluetooth Core" section
 (https://www.zephyrproject.org/doc/boards/x86/arduino_101/doc/board.html)
