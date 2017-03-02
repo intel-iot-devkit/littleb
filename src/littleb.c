@@ -1112,7 +1112,6 @@ lb_get_ble_characteristic_by_characteristic_path(lb_bl_device* dev,
                                                  lb_ble_char** ble_characteristic_ret)
 {
     int i, j;
-
     if (lb_ctx == NULL) {
         syslog(LOG_ERR, "%s: lb_ctx is null", __FUNCTION__);
         return -LB_ERROR_INVALID_CONTEXT;
@@ -1129,7 +1128,7 @@ lb_get_ble_characteristic_by_characteristic_path(lb_bl_device* dev,
     }
 
     for (i = 0; i < dev->services_size; i++) {
-        for (j = 0; dev->services[i]->characteristics_size; j++) {
+        for (j = 0; j < dev->services[i]->characteristics_size; j++) {
             if (strncmp(characteristic_path, dev->services[i]->characteristics[j]->char_path,
                         strlen(characteristic_path)) == 0) {
                 *ble_characteristic_ret = dev->services[i]->characteristics[j];
@@ -1382,7 +1381,7 @@ lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_
         return -LB_ERROR_UNSPECIFIED;
     }
 
-    /*
+    
     r = sd_bus_message_append(func_call, "a{sv}", 0, NULL);
     if (r < 0) {
         syslog(LOG_ERR, "%s: Failed to append a{sv} to message call", __FUNCTION__);
@@ -1390,7 +1389,7 @@ lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_
         sd_bus_message_unref(func_call);
         return -LB_ERROR_UNSPECIFIED;
     }
-    */
+    
 
     r = sd_bus_call(lb_ctx->bus, func_call, 0, &error, NULL);
     if (r < 0) {

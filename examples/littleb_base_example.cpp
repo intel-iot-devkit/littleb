@@ -21,41 +21,65 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "../api/littleb.hpp"
-
-/**
-* @todo complete and document, replace printf with cout
-*/
-using namespace littleb;
-using namespace std;
-
-static int
-test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
+#include "../api/device.h"
+#include "../api/devicemanager.h"
+#include <iostream>
+int printResult(std::vector<uint8_t>& res, sd_bus_message* message, void* userdata)
 {
-    uint8_t* result = NULL;
-    const char* userdata_test = (const char*) userdata;
-
-    printf("callback called with userdata: %s\n", userdata_test);
-
     try {
-        result = Device::parseUartServiceMessage(message);
-    } catch (exception& e) {
-        fprintf(stderr, "ERROR: couldn't parse uart message, %s\n", e.what());
+        res = parseUartServiceMessage(message);
+    } catch (std::exception& e) {
+        std::cout <<"ERROR: couldn't parse uart message, "<<e.what() <<std::endl;
         return -1;
     }
 
-    printf("message is:\n");
-    int size = sizeof(result) / sizeof(uint8_t);
-
-    for (int i = 0; i < size; i++) {
-        printf("%x ", result[i]);
+    std::cout<< "raw data recived: "<<std::endl;
+    
+    for (unsigned int i = 0; i < res.size(); i++) {
+        int r = (int) res[i];
+        std::cout << r<<" ";
     }
-    printf("\n");
+    std::cout << std::endl;
+    return 0;
+}
+
+int sensor_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
+{
+    
+    std::vector<uint8_t> res;
+    if (printResult(res, message, userdata) != 0) {
+        return -1;
+    }
+   
+    uint16_t rawTemp = (res[1] << 8) | res[0];
+    std::cout <<"\nIR temperature: "<<((double) rawTemp) / 128.0 <<std::endl;
+
+    uint16_t rawAmbTemp = (res[3] << 8) | res[2];
+    std::cout <<"ambient temperature: "<<((double) rawAmbTemp) / 128.0 <<std::endl;
 
     return 0;
 }
 
+int firmata_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
+{
+    
+    std::vector<uint8_t> result;
+    if (printResult(result, message, userdata) != 0) {
+        return -1;
+    }
+    return 0;
+}
+int change_state_callback(lb_bl_property_change_notification bcn, void* userdata) 
+{
+    const char* userdata_test = (const char*) userdata;
+    std::cout<<"change_state_callback with userdata: "<< userdata_test<<std::endl;
+    std::cout<<"Event changed: "<< bcn<<std::endl;
+    
 
+    return 0;
+}
+
+std::shared_ptr<Device> firmata;
 int
 main(int argc, char* argv[])
 {
@@ -63,78 +87,76 @@ main(int argc, char* argv[])
         DeviceManager& devManager = DeviceManager::getInstance();
         devManager.getBlDevices();
 
-        Device* firmata = devManager.getDeviceByName(string("FIRMATA"));
+	firmata = devManager.getDeviceByName("FIRMATA");
 
         firmata->connect();
 
-        firmata->getBleDeviceServices();
+        std::vector<std::shared_ptr<BleService>> services = firmata->getBleDeviceServices();
 
-        printf("Device Found:\nName: %s\nDevice Address: %s\n", firmata->getName().c_str(),
-               firmata->getAddress().c_str());
+        std::cout<<"Device Found:\nName: "<<firmata->getName()<<"\nDevice Address: "<<firmata->getAddress()<<std::endl;
 
-        BleService* services = firmata->getServices();
-
-        if (services == NULL) {
-            printf("No services found:\n");
+        if (services.size() == 0) {
+            std::cout<<"No services found"<<std::endl;
         } else {
-            printf("Services found:\n");
+            std::cout<<"Services found:"<<std::endl;
 
             for (int i = 0; i < firmata->getNumOfServices(); i++) {
-                printf("%s\t%s\n", services[i].getPath().c_str(), services[i].getUuid().c_str());
-                printf("Characteristics Found:\n");
+                std::cout<<services[i]->getPath() << "\t" << services[i]->getUuid()<<std::endl;
+                std::cout<<"Characteristics Found:"<<std::endl;
 
-                const vector<BleCharactersitic*> characteristics = services[i].getCharacteristics();
+                std::vector<std::shared_ptr<BleCharactersitic>> characteristics = services[i]->getCharacteristics();
                 for (unsigned int j = 0; j < characteristics.size(); j++) {
-                    printf("%s\t%s\n", characteristics[j]->getPath().c_str(),
-                           characteristics[j]->getUuid().c_str());
+                    std::cout<< characteristics[j]->getPath()<< "\t" << 
+                           characteristics[j]->getUuid()<<std::endl;
                 }
             }
 
-            delete[] services;
+            // delete[] services;
         }
 
-        printf("Blinking");
-        fflush(stdout);
-        uint8_t led_on[] = { 0x91, 0x20, 0x00 };
-        uint8_t led_off[] = { 0x91, 0x00, 0x00 };
+        std::cout <<"Blinking";
+        std::vector<uint8_t> led_on = { 0x91, 0x20, 0x00 };
+        std::vector<uint8_t> led_off = { 0x91, 0x00, 0x00 };
         for (int i = 0; i < 10; i++) {
-            printf(".");
+            std::cout <<".";
             fflush(stdout);
             firmata->writeToCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
 
-            usleep(1000000);
-            printf(".");
+            usleep(500000);
+            std::cout <<".";
             fflush(stdout);
             firmata->writeToCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
 
-            usleep(1000000);
+            usleep(500000);
         }
-        printf("\n");
 
-        const char* userdata_test = "test";
-        firmata->registerCharacteristicReadEvent("6e400003-b5a3-f393-e0a9-e50e24dcca9e",
-                                                 test_callback, (void*) userdata_test);
+        char* userdata_test = "test";
+        
 
-        printf("get_version\n");
-        fflush(stdout);
-        uint8_t get_version[] = { 0xf0, 0x79, 0xf7 };
+        firmata->registerChangeStateEvent(change_state_callback, userdata_test);
+        firmata->registerCharacteristicReadEvent("6e400003-b5a3-f393-e0a9-e50e24dcca9e", firmata_callback, userdata_test);
+        std::cout <<std::endl<<"get_version"<<std::endl;
+        // fflush(stdout);
+        std::vector<uint8_t> get_version = { 0xf0, 0x79, 0xf7 };
 
         firmata->writeToCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, get_version);
 
-        printf("waiting for callbacks\n");
-        fflush(stdout);
+        std::cout <<"waiting for callbacks"<<std::endl;
+        // fflush(stdout);
         sleep(2);
 
         // read device properties
         BlProperties firmataProperties = firmata->getDeviceProperties();
-        printf("Firmata state: connected: %d paired: %d truested: %d\n",
-               firmataProperties.connected, firmataProperties.paired, firmataProperties.trusted);
+        std::cout <<"Firmata state: connected: "<< firmataProperties.connected <<" paired: "<<
+                    firmataProperties.paired <<" truested: "<<firmataProperties.trusted <<std::endl;
 
         firmata->disconnect();
-        printf("Firmata disconnected\n");
-
-    } catch (exception& e) {
-        printf("%s\n", e.what());
+        std::cout <<"Firmata disconnected"<<std::endl;
+        sleep(4);
+    } catch (std::exception& e) {
+        std::cout << e.what()<<std::endl;
+	firmata->disconnect();
+        std::cout <<"Firmata disconnected"<<std::endl;
     }
     return 0;
 }

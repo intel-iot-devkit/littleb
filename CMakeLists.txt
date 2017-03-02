@@ -3,8 +3,8 @@ project (littleb)
 
 find_package (Threads REQUIRED)
 
-set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -fno-omit-frame-pointer ")
-set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall ")
+set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -fno-omit-frame-pointer -std=c++11")
+set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -std=c++11")
 
 # Set CMAKE_INSTALL_LIBDIR if not defined
 include(GNUInstallDirs)
@@ -63,7 +63,15 @@ set (CMAKE_SWIG_FLAGS "")
 find_path (SYSTEM_USR_DIR "stdlib.h")
 include_directories (${SYSTEM_USR_DIR})
 
+option (BUILDSWIG "Build swig modules." ON)
+option (BUILDSWIGPYTHON "Build swig python modules." ON)
 option (ENABLEEXAMPLES "Disable building of examples" ON)
+
+if (BUILDSWIGPYTHON)
+  include (cmake/modules/OpenCVDetectPython.cmake)
+endif ()
+
+
 
 add_subdirectory (src)
 
