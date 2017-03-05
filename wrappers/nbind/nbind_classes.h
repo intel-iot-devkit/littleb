@@ -9,7 +9,7 @@ NBIND_CLASS(sd_bus_error) {}
 NBIND_CLASS(BleCharactersitic) {
   construct<>();
   construct<std::string, std::string>();
-  // construct<lb_ble_char&>();
+  construct<lb_ble_char&>();
   method(getPath);
   method(getUuid);
   

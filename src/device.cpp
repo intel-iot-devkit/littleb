@@ -381,20 +381,27 @@
     }
 #endif
 #ifdef BUILDING_NODE_EXTENSION
+
     void Device::registerCallbackReadEvent(std::string uuid, nbind::cbFunction& cbFunc) {
 
         v8::Isolate* isolate = v8::Isolate::New(v8::Isolate::CreateParams());
         v8::Local<v8::Function> func = cbFunc.getJsFunction();
-        r_call_event.Reset(isolate, func);
-        registerCharacteristicReadEvent(uuid, uvworkReadEvent, this);
+        auto ptr = std::make_shared<r_call_event>();
+        r_call_events.push_back(ptr);
+        ptr->r_call.Reset(isolate, func);
+        registerCharacteristicReadEvent(uuid, uvworkReadEvent, ptr.get());
+
     }
 
     void Device::registerCallbackStateEvent(nbind::cbFunction& cbFunc){
 
         v8::Isolate* isolate = v8::Isolate::New(v8::Isolate::CreateParams());
         v8::Local<v8::Function> func = cbFunc.getJsFunction();     
-        r_call.Reset(isolate, func);
-        registerChangeStateEvent(uvworkStateChange, this);
+        auto ptr = std::make_shared<r_call_event>();
+        r_call_events.push_back(ptr);
+
+        ptr->r_call.Reset(isolate, func);
+        registerChangeStateEvent(uvworkStateChange, ptr.get());
     
     }
 #endif

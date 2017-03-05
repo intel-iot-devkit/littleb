@@ -1,8 +1,14 @@
 #pragma once
 
 #include "littlebtypes.h"
+
 #ifdef BUILDING_NODE_EXTENSION
     #include "nbind/api.h"
+    
+    struct r_call_event {
+        v8::Persistent<v8::Function> r_call;
+    };
+
 #endif
 
 
@@ -55,8 +61,7 @@ class Device
 #ifdef BUILDING_NODE_EXTENSION
     void registerCallbackReadEvent(std::string uuid, nbind::cbFunction& cbFunc);
     void registerCallbackStateEvent(nbind::cbFunction& cbFunc);
-    v8::Persistent<v8::Function> r_call;
-    v8::Persistent<v8::Function> r_call_event;
+    std::vector<std::shared_ptr<r_call_event>> r_call_events;
 #endif
   private:
     lb_bl_device m_device;

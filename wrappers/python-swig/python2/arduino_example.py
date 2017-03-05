@@ -60,10 +60,9 @@ try:
 
 		dev.writeToCharacteristic(IR_TEMP_CONFIG_UUID, 3, LED_OFF)
 		time.sleep(0.5)
-	
 
 	lb.registerCallbackEventRead(dev, IR_TEMP_DATA_UUID, firmata_callback_py)
-	# lb.registerCallbackChangeState(dev, change_state_callback_py)
+	lb.registerCallbackChangeState(dev, change_state_callback_py)
 	print "get_version"
 	get_version = lb.uintVector(3) 
 	get_version[0] = 0xf0

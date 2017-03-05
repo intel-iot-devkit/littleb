@@ -199,10 +199,8 @@ var program = async (function () {
             await(device.writeToCharacteristic(IR_FIRMATA_CONFIG_UUID, 3, LED_OFF));
         }
         
-        
-        
-        // await(device.registerCallbackStateEvent(ChangeStateCB));
         await(device.registerCallbackReadEvent(IR_FIRMATA_DATA_UUID, firmata_callback));
+        await(device.registerCallbackStateEvent(ChangeStateCB));
         console.log("get_version");
         await(device.writeToCharacteristic(IR_FIRMATA_CONFIG_UUID, 3, get_version));
         setTimeout(function(){console.log("Sample exited successfully.")}, 10000);     

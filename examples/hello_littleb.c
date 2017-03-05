@@ -50,6 +50,15 @@ test_callback(sd_bus_message* message, void* userdata, sd_bus_error* error)
 
     return 0;
 }
+static int change_state_callback(lb_bl_property_change_notification bcn, void* userdata) 
+{
+    const char* userdata_test = (const char*) userdata;
+    printf("change_state_callback with userdata: %s\n", userdata_test);
+    printf("Event changed: %d\n", bcn);
+    
+
+    return 0;
+}
 
 int
 main(int argc, char* argv[])
@@ -116,14 +125,14 @@ main(int argc, char* argv[])
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        usleep(1000000);
+        usleep(500000);
         printf(".");
         fflush(stdout);
         r = lb_write_to_characteristic(firmata, "6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
         if (r < 0) {
             fprintf(stderr, "ERROR: lb_write_to_characteristic\n");
         }
-        usleep(1000000);
+        usleep(500000);
     }
     printf("\n");
 
@@ -137,6 +146,12 @@ main(int argc, char* argv[])
         goto cleanup;
     }
 
+    r =
+    lb_register_change_state_event(firmata, change_state_callback, (void*) userdata_test);
+    if (r < 0) {
+        fprintf(stderr, "ERROR: lb_register_change_state_event\n");
+        goto cleanup;
+    }
 
     printf("get_version\n");
     fflush(stdout);
@@ -161,12 +176,12 @@ cleanup:
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_disconnect_device\n");
     }
-
+    sleep(5);
     r = lb_destroy();
     if (r < 0) {
         fprintf(stderr, "ERROR: lb_destroy\n");
     }
-
+    
     printf("Done\n");
 
     return 0;

@@ -78,7 +78,7 @@ int change_state_callback(lb_bl_property_change_notification bcn, void* userdata
 
     return 0;
 }
-
+#define DEVICE "FIRMATA"
 std::shared_ptr<Device> firmata;
 int
 main(int argc, char* argv[])
@@ -87,7 +87,7 @@ main(int argc, char* argv[])
         DeviceManager& devManager = DeviceManager::getInstance();
         devManager.getBlDevices();
 
-	firmata = devManager.getDeviceByName("FIRMATA");
+	firmata = devManager.getDeviceByName(DEVICE);
 
         firmata->connect();
 
@@ -122,19 +122,20 @@ main(int argc, char* argv[])
             fflush(stdout);
             firmata->writeToCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_on);
 
-            usleep(500000);
+            usleep(100000);
             std::cout <<".";
             fflush(stdout);
             firmata->writeToCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e", 3, led_off);
 
-            usleep(500000);
+            usleep(100000);
         }
 
         char* userdata_test = "test";
         
-
+        
         firmata->registerChangeStateEvent(change_state_callback, userdata_test);
         firmata->registerCharacteristicReadEvent("6e400003-b5a3-f393-e0a9-e50e24dcca9e", firmata_callback, userdata_test);
+        
         std::cout <<std::endl<<"get_version"<<std::endl;
         // fflush(stdout);
         std::vector<uint8_t> get_version = { 0xf0, 0x79, 0xf7 };
