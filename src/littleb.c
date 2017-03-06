@@ -98,7 +98,7 @@ _run_event_loop(void* arg)
     for (i = 0; i < event_arr_size; i++) {
 
         r = sd_bus_add_match(bus, NULL, events_matches_array[i]->event,
-                             *(events_matches_array[i]->callback), events_matches_array[i]->userdata);
+                             events_matches_array[i]->callback, events_matches_array[i]->userdata);
         if (r < 0) {
             syslog(LOG_ERR, "%s: Failed on sd_bus_add_match with error %d", __FUNCTION__, r);
             return NULL;
@@ -817,7 +817,6 @@ lb_destroy()
                 free(events_matches_array[i]->userdata);
             }
             free(events_matches_array[i]->event);
-            free(events_matches_array[i]->callback);
             free(events_matches_array[i]);
         }
         free(events_matches_array);
@@ -1562,16 +1561,9 @@ lb_register_characteristic_read_event(lb_bl_device* dev, const char* uuid, sd_bu
     }
     memcpy(new_event_pair->event, match, sizeof(char) * MATCH_SIZE);
 
-    new_event_pair->callback = (sd_bus_message_handler_t*) malloc(sizeof(sd_bus_message_handler_t));
-    if (new_event_pair->callback == NULL) {
-        syslog(LOG_ERR, "%s: Error allocating memory for new_event_pair->callback", __FUNCTION__);
-        return -LB_ERROR_MEMEORY_ALLOCATION;
-    }
-    memcpy(new_event_pair->callback, &callback, sizeof(sd_bus_message_handler_t));
 
     new_event_pair->userdata = userdata;
-    // new_event_pair->event = match;
-    // new_event_pair->callback = &callback;
+    new_event_pair->callback = callback;
     
     events_matches_array[current_index] = new_event_pair;
     
@@ -1652,18 +1644,8 @@ lb_register_change_state_event(lb_bl_device* dev, property_change_callback_func 
     }
     memcpy(new_event_pair->event, match, sizeof(char) * MATCH_SIZE);
 
-    new_event_pair->callback = (sd_bus_message_handler_t*) malloc(sizeof(sd_bus_message_handler_t));
-    if (new_event_pair->callback == NULL) {
-        syslog(LOG_ERR, "%s: Error allocating memory for new_event_pair->callback", __FUNCTION__);
-        return -LB_ERROR_MEMEORY_ALLOCATION;
-    }
     sd_bus_message_handler_t internal_callback = _property_change_callback;
-    memcpy(new_event_pair->callback, &internal_callback, sizeof(sd_bus_message_handler_t));
-    
-    // new_event_pair->userdata = userdata;
-    // new_event_pair->event = match;
-    // new_event_pair->callback = &callback;
-    // new_event_pair->event = match;
+    new_event_pair->callback = internal_callback;
 
     bl_user_notification_callback* internal_callback_data =
     (bl_user_notification_callback*) malloc(sizeof(bl_user_notification_callback));
