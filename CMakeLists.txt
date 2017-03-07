@@ -64,7 +64,8 @@ find_path (SYSTEM_USR_DIR "stdlib.h")
 include_directories (${SYSTEM_USR_DIR})
 
 option (BUILDSWIG "Build swig modules." ON)
-option (BUILDSWIGPYTHON "Build swig python modules." ON)
+#currently disabling to avoid breaking the builc
+option (BUILDSWIGPYTHON "Build swig python modules." OFF)
 option (ENABLEEXAMPLES "Disable building of examples" ON)
 
 if (BUILDSWIGPYTHON)
