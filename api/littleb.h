@@ -74,6 +74,30 @@ typedef struct bl_device {
     int services_size;         /**< count of services in the device */
 } lb_bl_device;
 
+typedef struct bl_properties {
+    bool paired;    /**< is device paired */
+    bool trusted;   /**< is device trusted */
+    bool connected; /**< deviced connected */
+} lb_bl_properties;
+
+/**
+ * Enum used for callback, once registered to get notifications about specific device state change
+ *  lb_bl_property_change_notification indicates which event triggered the callback
+ */
+typedef enum bl_property_change_notification {
+    LB_DEVICE_PAIR_EVENT = 0,       /**< device paired */
+    LB_DEVICE_UNPAIR_EVENT = 1,     /**< device unpaired */
+    LB_DEVICE_TRUSTED_EVENT = 2,    /**< device trusted */
+    LB_DEVICE_UNTRUSTED_EVENT = 3,  /**< device not trusted */
+    LB_DEVICE_CONNECT_EVENT = 4,    /**< device connected */
+    LB_DEVICE_DISCONNECT_EVENT = 5, /**< device disconnected */
+    LB_OTHER_EVENT = 6              /**< state change not todo with options listed above */
+} lb_bl_property_change_notification;
+
+/*
+* callback type to be used in lb_register_change_state_event
+*/
+typedef int (*property_change_callback_func)(lb_bl_property_change_notification, void* userdata);
 
 /**
  * Initialize littleb.
@@ -153,9 +177,7 @@ lb_result_t lb_get_ble_characteristic_by_characteristic_path(lb_bl_device* dev,
  * @param ble_char to populate with characteristic found
  * @return Result of operation
  */
-lb_result_t lb_get_ble_characteristic_by_uuid(lb_bl_device* dev,
-                                              const char* uuid,
-                                              lb_ble_char** ble_characteristic_ret);
+lb_result_t lb_get_ble_characteristic_by_uuid(lb_bl_device* dev, const char* uuid, lb_ble_char** ble_characteristic_ret);
 
 /**
  * Populate ble_service with service found by using it's device path under dbus
@@ -165,9 +187,8 @@ lb_result_t lb_get_ble_characteristic_by_uuid(lb_bl_device* dev,
  * @param ble_service to populate with service found
  * @return Result of operation
  */
-lb_result_t lb_get_ble_service_by_service_path(lb_bl_device* dev,
-                                               const char* service_path,
-                                               lb_ble_service** ble_service_ret);
+lb_result_t
+lb_get_ble_service_by_service_path(lb_bl_device* dev, const char* service_path, lb_ble_service** ble_service_ret);
 
 /**
  * Populate ble_service with service found by using it's uuid
@@ -177,9 +198,7 @@ lb_result_t lb_get_ble_service_by_service_path(lb_bl_device* dev,
  * @param ble_service to populate with service found
  * @return Result of operation
  */
-lb_result_t lb_get_ble_service_by_uuid(lb_bl_device* dev,
-                                       const char* uuid,
-                                       lb_ble_service** ble_service_ret);
+lb_result_t lb_get_ble_service_by_uuid(lb_bl_device* dev, const char* uuid, lb_ble_service** ble_service_ret);
 
 /**
  * Populate the BLE device with it's services
@@ -219,6 +238,15 @@ lb_result_t lb_get_device_by_device_name(const char* name, lb_bl_device** bl_dev
 lb_result_t lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_ret);
 
 /**
+ * Get device properties, identidy device using address
+ *
+ * @param device address
+ * @param bl_properties_ret to populate with device properties (status)
+ * @return Result of operation
+ */
+lb_result_t lb_get_device_properties(const char* address, lb_bl_properties* bl_properties_ret);
+
+/**
  * Write to a specific BLE device characteristic using it's uuid
  *
  * @param dev BLE device to search the characteristic in
@@ -227,8 +255,7 @@ lb_result_t lb_get_device_by_device_address(const char* address, lb_bl_device** 
  * @param the array of byte buffer to write to the characteristic
  * @return Result of operation
  */
-lb_result_t
-lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_t* value);
+lb_result_t lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_t* value);
 
 /**
  * Read from a specific BLE device characteristic using it's uuid
@@ -239,8 +266,7 @@ lb_write_to_characteristic(lb_bl_device* dev, const char* uuid, int size, uint8_
  * @param the array of byte buffer that was read
  * @return Result of operation
  */
-lb_result_t
-lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, uint8_t** result);
+lb_result_t lb_read_from_characteristic(lb_bl_device* dev, const char* uuid, size_t* size, uint8_t** result);
 
 /**
  * Register a callback function for an event of characteristic value change
@@ -257,7 +283,18 @@ lb_result_t lb_register_characteristic_read_event(lb_bl_device* dev,
                                                   void* userdata);
 
 /**
+ * Register a callback function for device state (connected/paired/trusted) change event
+ *
+ * @param dev BLE device to get notifications for
+ * @param callback function to be called when state change
+ * @param userdata to pass in the callback function
+ * @return Result of operation
+ */
+lb_result_t lb_register_change_state_event(lb_bl_device* dev, property_change_callback_func callback, void* userdata);
+
+/**
  * Special function to parse uart tx line buffer
+ * Wrapper function to lb_parse_dbus_message
  *
  * @param message sd_bus_message to prase the buffer array from
  * @param result buffer to accommodate the result
@@ -265,6 +302,19 @@ lb_result_t lb_register_characteristic_read_event(lb_bl_device* dev,
  * @return Result of operation
  */
 lb_result_t lb_parse_uart_service_message(sd_bus_message* message, const void** result, size_t* size);
+
+
+/**
+ * Function call that extract buffer array from sd_bus_messages
+ * Designed for messages of type: "sa{sv}as"
+ *
+ * @param message sd_bus_message to prase the buffer array from
+ * @param result buffer to accommodate the result
+ * @param size of the buffer
+ * @return Result of operation
+ */
+lb_result_t lb_parse_dbus_message(sd_bus_message* message, const void** result, size_t* size);
+
 
 #ifdef __cplusplus
 }

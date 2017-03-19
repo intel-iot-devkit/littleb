@@ -31,11 +31,18 @@ extern "C" {
 
 #define MAX_LEN 256
 #define MAX_OBJECTS 256
+#define MSG_MAX_PROPERTIES \
+    10 // max number of entries supported when parsing sd_bus_message, if there are more they won't
+       // be handled for notifications
 
 static const char* BLUEZ_DEST = "org.bluez";
 static const char* BLUEZ_DEVICE = "org.bluez.Device1";
 static const char* BLUEZ_GATT_SERVICE = "org.bluez.GattService1";
 static const char* BLUEZ_GATT_CHARACTERISTICS = "org.bluez.GattCharacteristic1";
+
+static const char* PAIRED_PROPERTY_NAME = "Paired";
+static const char* TRUSTED_PROPERTY_NAME = "Trusted";
+static const char* CONNECTED_PROPERTY_NAME = "Connected";
 
 struct bl_context {
     sd_bus* bus;            /**< system bus to be used */
@@ -46,10 +53,22 @@ struct bl_context {
 typedef struct bl_context* lb_context;
 
 typedef struct event_matches_callbacks {
-    const char* event;
-    sd_bus_message_handler_t* callback;
+    // const char* event;
+    char* event;
+    sd_bus_message_handler_t callback;
     void* userdata;
 } event_matches_callbacks;
+
+typedef struct {
+    property_change_callback_func callback;
+    void* data;
+} bl_user_notification_callback;
+
+typedef struct {
+    char* name;
+    bool value;
+} bl_property_data;
+
 
 #ifdef __cplusplus
 }
