@@ -50,6 +50,8 @@ static void state_change_run(uv_work_t* a, int status) {
     else {
         std::cout<<"empty r_call"<<std::endl;
     }
+	delete cs;
+	delete a;
 }
 
 static void read_event_run(uv_work_t* a, int status) {
@@ -78,6 +80,8 @@ static void read_event_run(uv_work_t* a, int status) {
     else {
         std::cout<<"empty r_call"<<std::endl;
     }
+	delete cs;
+	delete a;
     
 }
 static int uvworkReadEvent(sd_bus_message* message, void* userdata, sd_bus_error* error)
@@ -96,7 +100,7 @@ static int uvworkReadEvent(sd_bus_message* message, void* userdata, sd_bus_error
     uv_queue_work(uv_default_loop(), req, beforeFunc, read_event_run);
     return 0;
 }
-int uvworkStateChange(lb_bl_property_change_notification bpcn, void* userdata) {
+static int uvworkStateChange(lb_bl_property_change_notification bpcn, void* userdata) {
     
 	uv_work_t* req = new uv_work_t;
 	stateChangedEvent* st = new stateChangedEvent();
