@@ -23,10 +23,7 @@
  */
 
 //#pragma once
-
-
 #include "devicemanager.h"
-
 
 /**
  * @brief DeviceManager is an API to littleb

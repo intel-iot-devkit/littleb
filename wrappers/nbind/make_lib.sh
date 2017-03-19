@@ -1,4 +1,4 @@
 #!/bin/bash
 node-gyp configure build
 node-gyp build
-nodejs async_example.js
+#nodejs async_example.js

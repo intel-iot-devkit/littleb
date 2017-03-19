@@ -1,3 +1,7 @@
+import sys
+path_to_lib = "../build/wrappers/python_swig/python3"
+sys.path.append(path_to_lib)
+# from path_to_lib import littleb as lb
 import littleb as lb
 import time
 # import numpy
@@ -93,7 +97,7 @@ try:
 		time.sleep(0.5)
 
 	lb.registerCallbackEventRead(device, FIRMATA_DATA_UUID, firmata_callback_py)
-	# lb.registerCallbackChangeState(device, change_state_callback_py)
+	lb.registerCallbackChangeState(device, change_state_callback_py)
 	
 	print ("get_version")
 	get_version = lb.uintVector(3) 

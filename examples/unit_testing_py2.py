@@ -1,3 +1,6 @@
+import sys
+path_to_lib = "../build/wrappers/python_swig/python2"
+sys.path.append(path_to_lib)
 import littleb as lb
 import time
 # import numpy

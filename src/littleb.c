@@ -74,7 +74,8 @@ _property_change_callback(sd_bus_message* message, void* userdata, sd_bus_error*
 void*
 _run_event_loop(void* arg)
 {
-    int r, i;
+    size_t i;
+    int r;
     sd_bus* bus = NULL;
 
     r = sd_bus_open_system(&bus);
@@ -116,7 +117,7 @@ _run_event_loop(void* arg)
 const char*
 _convert_device_path_to_address(const char* address)
 {
-    int i;
+    size_t i;
     const char* prefix = "dev_";
 
     // find the address in the object string - after "dev_"
@@ -800,7 +801,8 @@ lb_init()
 lb_result_t
 lb_destroy()
 {
-    int i, r;
+	size_t i;
+    int r;
 
     pthread_cancel(event_thread);
     pthread_join(event_thread, NULL);
@@ -1318,7 +1320,7 @@ lb_get_device_by_device_address(const char* address, lb_bl_device** bl_device_re
 lb_result_t
 lb_get_device_properties(const char* address, lb_bl_properties* bl_properties_ret)
 {
-    int r;
+    //int r;
 
     if (address == NULL) {
         syslog(LOG_ERR, "%s: address is null", __FUNCTION__);

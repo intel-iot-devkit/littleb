@@ -53,7 +53,8 @@ struct bl_context {
 typedef struct bl_context* lb_context;
 
 typedef struct event_matches_callbacks {
-    const char* event;
+    // const char* event;
+    char* event;
     sd_bus_message_handler_t callback;
     void* userdata;
 } event_matches_callbacks;
