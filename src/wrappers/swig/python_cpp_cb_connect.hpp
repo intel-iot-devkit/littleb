@@ -1,8 +1,4 @@
-#ifdef PYTHON2
-    #include <python2.7/Python.h>
-#elif PYTHON3
-    #include <python3.5/Python.h>
-#endif
+#include <Python.h>
 
 /**
  * callback function for charactersitic read event middle man function for python use

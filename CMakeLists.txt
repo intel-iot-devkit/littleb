@@ -63,15 +63,10 @@ set (CMAKE_SWIG_FLAGS "")
 find_path (SYSTEM_USR_DIR "stdlib.h")
 include_directories (${SYSTEM_USR_DIR})
 
-option (BUILDSWIG "Build swig modules." ON)
 option (BUILDSWIGPYTHON "Build swig python modules." ON)
 option (ENABLEEXAMPLES "Disable building of examples" ON)
 option (BUILDWRAPPERS "Disable building of examples" ON)
-
-# if (BUILDSWIGPYTHON)
-#   include (cmake/modules/OpenCVDetectPython.cmake)
-# endif ()
-
+option (BUILDNBIND "Disable building of nbind wrapper" ON)
 
 include_directories(api)
 add_subdirectory (src)
@@ -79,13 +74,3 @@ add_subdirectory (src)
 if (ENABLEEXAMPLES)
   add_subdirectory (examples)
 endif ()
-
-if (BUILDWRAPPERS)
-  
-  # include (cmake/modules/OpenCVDetectPython.cmake)
-  add_subdirectory (wrappers/python_swig/python3)
-  add_subdirectory (wrappers/python_swig/python2)
-  add_subdirectory (wrappers/nbind)
-endif ()
-
-

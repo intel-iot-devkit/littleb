@@ -29,15 +29,15 @@
     try {
         $action
     } catch(const std::runtime_error& e) {
-     	SWIG_exception(SWIG_RuntimeError, e.what());  
+        SWIG_exception(SWIG_RuntimeError, e.what());
     } catch(...) {
         SWIG_exception(SWIG_ValueError, "Unknown exception");
     }
 }
 
-%include "../../api/littlebtypes.h"
-%include "../../api/device.h"
-%include "../../api/devicemanager.h"
+%include "littlebtypes.h"
+%include "device.h"
+%include "devicemanager.h"
 
 %template(uintVector) std::vector<uint8_t>;
 %template(intVector) std::vector<int>;

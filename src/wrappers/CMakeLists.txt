@@ -1,0 +1,7 @@
+if (BUILDSWIGPYTHON)
+  include (../../cmake/modules/OpenCVDetectPython.cmake)
+  add_subdirectory (swig)
+endif ()
+if (BUILDNBIND)
+  add_subdirectory (nbind)
+endif ()

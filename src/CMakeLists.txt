@@ -36,7 +36,6 @@ macro (littleb_CREATE_INSTALL_PKGCONFIG generated_file install_location)
 endmacro (littleb_CREATE_INSTALL_PKGCONFIG)
 littleb_create_install_pkgconfig (littleb.pc ${LIB_INSTALL_DIR}/pkgconfig)
 
-
 add_library (littleb ${littleb_LIB_SRCS})
 target_link_libraries (littleb ${littleb_LIBS})
 set_target_properties(
@@ -47,3 +46,8 @@ set_target_properties(
 )
 
 install(TARGETS littleb DESTINATION ${LIB_INSTALL_DIR})
+
+if (BUILDWRAPPERS)
+  add_subdirectory (wrappers)
+endif ()
+
