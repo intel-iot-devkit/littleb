@@ -1121,7 +1121,7 @@ lb_get_ble_characteristic_by_uuid(lb_bl_device* dev, const char* uuid, lb_ble_ch
     }
 
     for (i = 0; i < dev->services_size; i++) {
-        for (j = 0; dev->services_size; j++) {
+        for (j = 0; j < dev->services[i]->characteristics_size; j++) {
             if (strncmp(uuid, dev->services[i]->characteristics[j]->uuid, strlen(uuid)) == 0) {
                 *ble_characteristic_ret = dev->services[i]->characteristics[j];
                 return LB_SUCCESS;
