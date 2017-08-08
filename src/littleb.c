@@ -405,26 +405,6 @@ _is_service_primary(const char* service_path)
     return primary;
 }
 
-bool
-_is_device_paired(const char* device_path)
-{
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    int r;
-    bool paired;
-
-    r = sd_bus_get_property_trivial(lb_ctx->bus, BLUEZ_DEST, device_path, BLUEZ_DEVICE, "Paired",
-                                    &error, 'b', &paired);
-    if (r < 0) {
-        syslog(LOG_ERR, "%s: sd_bus_get_property_trivial Paired on device %s failed with error: %s",
-               __FUNCTION__, device_path, error.message);
-        sd_bus_error_free(&error);
-        return NULL;
-    }
-
-    sd_bus_error_free(&error);
-    return paired;
-}
-
 lb_result_t
 _add_new_characteristic(lb_ble_service* service, const char* characteristic_path)
 {
@@ -988,15 +968,6 @@ lb_get_ble_device_services(lb_bl_device* dev)
         syslog(LOG_ERR, "%s: device %s not a bl device", __FUNCTION__, dev->device_path);
         sd_bus_error_free(&error);
         return -LB_ERROR_INVALID_DEVICE;
-    }
-
-    if (!_is_device_paired(dev->device_path)) {
-        r = lb_pair_device(dev);
-        if (r < 0) {
-            syslog(LOG_ERR, "%s: error pairing device", __FUNCTION__);
-            sd_bus_error_free(&error);
-            return -LB_ERROR_UNSPECIFIED;
-        }
     }
 
     if (dev->services != NULL) {
